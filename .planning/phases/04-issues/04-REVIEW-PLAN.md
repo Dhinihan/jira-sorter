@@ -153,7 +153,7 @@
 
 ## 📝 Commit Message Sugerido
 
-```
+```text
 fix(phase-4): address CodeRabbit review comments
 
 Security:

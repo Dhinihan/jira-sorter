@@ -23,10 +23,13 @@ export function ProjectSelect({
 
   // Carrega épicos quando o projeto muda
   useEffect(() => {
+    let isActive = true;
+
     async function loadEpics() {
       if (!selectedProject) {
         setEpics([]);
         setEpicsError(null);
+        setIsLoadingEpics(false);
         return;
       }
 
@@ -34,20 +37,31 @@ export function ProjectSelect({
       setEpicsError(null);
       try {
         const result = await getEpics(selectedProject);
+        if (!isActive) return;
+
         if (result.success) {
           setEpics(result.epics);
         } else {
+          setEpics([]);
           setEpicsError(result.message || "Erro ao carregar épicos");
         }
       } catch (error) {
+        if (!isActive) return;
         console.error("Erro ao carregar épicos:", error);
+        setEpics([]);
         setEpicsError("Erro inesperado ao carregar épicos");
       } finally {
-        setIsLoadingEpics(false);
+        if (isActive) {
+          setIsLoadingEpics(false);
+        }
       }
     }
 
     loadEpics();
+
+    return () => {
+      isActive = false;
+    };
   }, [selectedProject]);
 
   function handleProjectChange(projectKey: string) {
