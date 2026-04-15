@@ -19,43 +19,42 @@
 
 ---
 
-## Fase 2: API Routes - OAuth
+## Fase 2: Configuração de Personal API Token
 **Status:** 🔴 Não Iniciada  
-**Duração Estimada:** 60 minutos
+**Duração Estimada:** 30 minutos
 
 ### Tarefas:
-- [ ] Criar API Route `/app/api/auth/url/route.ts` (gerar URL de autorização)
-- [ ] Criar API Route `/app/api/auth/callback/route.ts` (receber código, trocar por token)
-- [ ] Criar API Route `/app/api/auth/refresh/route.ts` (renovar token)
-- [ ] Implementar PKCE para segurança
-- [ ] Testar fluxo completo de autenticação
+- [ ] Criar formulário de configuração (email + token)
+- [ ] Criar Server Action para validar token (testar chamada à Jira API)
+- [ ] Salvar credenciais em variáveis de ambiente (ou cookie seguro)
+- [ ] Criar função utilitária para Base64 encode (email:token)
+- [ ] Testar autenticação com chamada real à API do Jira
 
 ### Entregáveis:
-- ✅ Edge Function de OAuth funcionando
-- ✅ Retorna access_token e refresh_token
-- ✅ Tokens válidos para Jira API
+- ✅ Formulário de configuração funcional
+- ✅ Validação do token na API do Jira
+- ✅ Credenciais armazenadas com segurança
+- ✅ Teste de autenticação bem-sucedido
 
 ---
 
-## Fase 3: Frontend - Autenticação (SSR)
+## Fase 3: Frontend - Configuração e Validação
 **Status:** 🔴 Não Iniciada  
-**Duração Estimada:** 60 minutos
+**Duração Estimada:** 30 minutos
 
 ### Tarefas:
-- [ ] Criar middleware de autenticação (Next.js middleware)
-- [ ] Configurar cookies httpOnly para tokens
-- [ ] Criar Server Component de login
-- [ ] Implementar Server Action para iniciar OAuth
-- [ ] Criar página de callback OAuth (Server Component)
-- [ ] Implementar refresh token automático
-- [ ] Criar context de autenticação para Client Components
-- [ ] Mostrar usuário logado no header (Server Component)
+- [ ] Criar página de configuração `/config`
+- [ ] Formulário: Email do Jira + Personal API Token
+- [ ] Botão "Testar Conexão" (valida na API do Jira)
+- [ ] Mostrar status da conexão (verde/vermelho)
+- [ ] Criar Server Component protegido (redireciona se não configurado)
+- [ ] Botão "Desconectar" (limpa configuração)
 
 ### Entregáveis:
-- ✅ Botão "Conectar com Jira" funcional
-- ✅ Tela de consentimento do Jira abre
-- ✅ Retorna com token salvo
-- ✅ Logout funciona
+- ✅ Página de configuração funcional
+- ✅ Validação em tempo real do token
+- ✅ Redirecionamento automático se não configurado
+- ✅ Feedback visual do status da conexão
 
 ---
 

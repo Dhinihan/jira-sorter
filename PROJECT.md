@@ -20,9 +20,9 @@ Resolver o problema de priorização de backlog do Jira de forma intuitiva e vis
 ### Nota sobre Arquitetura
 Com Next.js na Vercel usando SSR:
 - Server Components buscam dados do Jira diretamente no servidor
-- API Routes gerenciam OAuth e tokens de forma segura
+- Personal API Token configurado em variável de ambiente (seguro)
 - Client Components cuidam da interatividade (pairwise comparison)
-- Tokens podem ficar em cookies httpOnly (mais seguro que localStorage)
+- Não é necessário OAuth (simplifica muito o fluxo)
 
 ### Backend (Serverless)
 - **Plataforma:** Next.js API Routes (serverless functions)
@@ -31,11 +31,10 @@ Com Next.js na Vercel usando SSR:
 
 ### Integrações
 - **Jira Cloud:** REST API v3
-- **Autenticação:** OAuth 2.0 (3LO) com scopes granulares
-- **Escopos necessários:**
-  - `read:jira-work` (ler issues)
-  - `write:jira-work` (alterar rank)
-  - `offline_access` (refresh token)
+- **Autenticação:** Personal API Token (Basic Auth)
+  - Email + Token no formato `email:token` (Base64)
+  - Token salvo de forma segura (variável de ambiente no servidor)
+  - Sem granularidade de escopos (usuário precisa ter permissões no Jira)
 
 ## Arquitetura
 
@@ -44,15 +43,15 @@ Com Next.js na Vercel usando SSR:
 │   Vercel                            │         │   Jira Cloud │
 │   ┌──────────────┐ ┌──────────────┐ │         │   API        │
 │   │  Next.js App │ │  API Routes  │◄├────────►│              │
-│   │  (Frontend)  │ │  (OAuth)     │ │         │              │
+│   │  (Frontend)  │ │  (Jira API)  │ │         │              │
 │   └──────────────┘ └──────────────┘ │         │              │
 └─────────────────────────────────────┘         └──────────────┘
         │
         │
         ▼
 ┌─────────────────┐
-│  localStorage   │
-│  (Token/Cache)  │
+│   Variáveis     │
+│   de Ambiente   │
 └─────────────────┘
 ```
 
@@ -84,7 +83,7 @@ Com Next.js na Vercel usando SSR:
 
 ## Definição de Pronto (Definition of Done)
 
-- [ ] Usuário consegue autenticar com Jira via OAuth
+- [ ] Usuário configura Personal API Token do Jira
 - [ ] Issues são buscadas com filtros corretos aplicados
 - [ ] Interface mostra 2 cards lado a lado para comparação
 - [ ] Usuário pode escolher qual issue é mais prioritária
@@ -106,7 +105,7 @@ Com Next.js na Vercel usando SSR:
 1. **API Rate Limits** do Jira (10 req/s) - implementar throttling
 2. **Permissões no Jira** - usuário precisa ter direito de alterar rank
 3. **Complexidade O(n log n)** - ordenar muitas issues pode demorar
-4. **OAuth complexidade** - fluxo de autenticação pode ser confuso
+4. **Token sem granularidade** - usuário precisa ter todas as permissões necessárias no Jira
 
 ## Sucesso
 
