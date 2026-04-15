@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { IssueCard } from './components';
 import { JiraIssue } from '@/app/actions/jira';
@@ -23,9 +23,10 @@ const MOCK_PAIRS: Array<[JiraIssue, JiraIssue]> = [
 ];
 
 export default function SortPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const [jiraDomain, setJiraDomain] = useState('');
+  
+  // Get domain from URL params
+  const jiraDomain = searchParams.get('domain') || 'empresa';
   
   // Mock state for UI demonstration - Phase 6 will implement real algorithm
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -34,12 +35,6 @@ export default function SortPage() {
   
   // Get issues from URL params (mock for now)
   const currentPair = MOCK_PAIRS[currentIndex] || MOCK_PAIRS[0];
-  
-  useEffect(() => {
-    // Get domain from cookie/localStorage (mock)
-    const domain = searchParams.get('domain') || 'empresa';
-    setJiraDomain(domain);
-  }, [searchParams]);
   
   const handleChoice = (side: 'left' | 'right') => {
     // Mock behavior - just advance to next pair
