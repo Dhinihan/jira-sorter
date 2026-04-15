@@ -3,6 +3,15 @@
 import { getJiraCredentials, encodeBasicAuth } from "@/lib/cookies";
 import { cache } from "react";
 
+// Constante para o campo de link de épico (evita hardcoding)
+const EPIC_LINK_FIELD = process.env.NEXT_PUBLIC_JIRA_EPIC_FIELD || "customfield_10014";
+
+// Helper para escapar valores JQL (previne injeção)
+function escapeJqlValue(value: string): string {
+  // Remove caracteres perigosos e quotes
+  return value.replace(/["'\\]/g, "");
+}
+
 export interface TestConnectionResult {
   success: boolean;
   message: string;
@@ -82,6 +91,18 @@ export interface SaveCredentialsResult {
 }
 
 export interface JiraProject {
+  key: string;
+  name: string;
+  avatarUrls?: {
+    "48x48"?: string;
+    "24x24"?: string;
+    "16x16"?: string;
+    "32x32"?: string;
+  };
+}
+
+// Interface para resposta da API de projetos
+interface JiraProjectResponse {
   key: string;
   name: string;
   avatarUrls?: {
@@ -218,7 +239,7 @@ export const getProjects = cache(async (): Promise<GetProjectsResult> => {
 
     const projectsData = await response.json();
 
-    const projects: JiraProject[] = projectsData.map((project: any) => ({
+    const projects: JiraProject[] = projectsData.map((project: JiraProjectResponse) => ({
       key: project.key,
       name: project.name,
       avatarUrls: project.avatarUrls,
@@ -244,6 +265,15 @@ export interface JiraEpic {
   summary: string;
 }
 
+// Interface para resposta de busca de issues
+interface JiraSearchIssue {
+  id: string;
+  key: string;
+  fields: {
+    summary: string;
+  };
+}
+
 export interface GetEpicsResult {
   success: boolean;
   epics: JiraEpic[];
@@ -264,8 +294,8 @@ export const getEpics = cache(async (projectKey: string): Promise<GetEpicsResult
 
     const auth = await encodeBasicAuth(credentials.email, credentials.token);
 
-    // Busca épicos do projeto usando JQL
-    const jql = `project = ${projectKey} AND issuetype = Epic ORDER BY created DESC`;
+    // Busca épicos do projeto usando JQL (com escaping)
+    const jql = `project = ${escapeJqlValue(projectKey)} AND issuetype = Epic ORDER BY created DESC`;
     
     const response = await fetch(
       `https://${credentials.domain}.atlassian.net/rest/api/3/search?jql=${encodeURIComponent(jql)}&maxResults=50&fields=id,key,summary`,
@@ -296,7 +326,7 @@ export const getEpics = cache(async (projectKey: string): Promise<GetEpicsResult
 
     const searchData = await response.json();
 
-    const epics: JiraEpic[] = searchData.issues?.map((issue: any) => ({
+    const epics: JiraEpic[] = searchData.issues?.map((issue: JiraSearchIssue) => ({
       id: issue.id,
       key: issue.key,
       summary: issue.fields.summary,
@@ -358,20 +388,20 @@ export async function searchIssues(
     const maxResults = 100;
     const startAt = page * maxResults;
 
-    // JQL base: issues pendentes e fora de sprint
-    let jql = `project = ${projectKey} AND status in ("To Do", "Backlog", "Open") AND sprint is EMPTY`;
+    // JQL base: issues pendentes e fora de sprint (com escaping)
+    let jql = `project = ${escapeJqlValue(projectKey)} AND status in ("To Do", "Backlog", "Open") AND sprint is EMPTY`;
 
     // Adiciona filtro de épico se especificado
     if (epicKey === "none") {
       jql += ` AND "Epic Link" is EMPTY`;
     } else if (epicKey) {
-      jql += ` AND "Epic Link" = ${epicKey}`;
+      jql += ` AND "Epic Link" = ${escapeJqlValue(epicKey)}`;
     }
 
     const response = await fetch(
       `https://${credentials.domain}.atlassian.net/rest/api/3/search?jql=${encodeURIComponent(
         jql
-      )}&maxResults=${maxResults}&startAt=${startAt}&fields=id,key,summary,status,assignee,customfield_10014`,
+      )}&maxResults=${maxResults}&startAt=${startAt}&fields=id,key,summary,status,assignee,${EPIC_LINK_FIELD}`,
       {
         method: "GET",
         headers: {
@@ -406,13 +436,13 @@ export async function searchIssues(
     const searchData = await response.json();
 
     const issues: JiraIssue[] =
-      searchData.issues?.map((issue: any) => ({
+      searchData.issues?.map((issue: { id: string; key: string; fields: { summary: string; status?: { name?: string }; assignee?: { displayName?: string } } }) => ({
         id: issue.id,
         key: issue.key,
         summary: issue.fields.summary,
         status: issue.fields.status?.name || "Unknown",
         assignee: issue.fields.assignee?.displayName || null,
-        epicKey: issue.fields.customfield_10014,
+        epicKey: issue.fields[EPIC_LINK_FIELD as keyof typeof issue.fields] as string | undefined,
       })) || [];
 
     const total = searchData.total || 0;

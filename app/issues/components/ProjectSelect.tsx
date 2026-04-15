@@ -19,23 +19,29 @@ export function ProjectSelect({
   const searchParams = useSearchParams();
   const [epics, setEpics] = useState<JiraEpic[]>([]);
   const [isLoadingEpics, setIsLoadingEpics] = useState(false);
+  const [epicsError, setEpicsError] = useState<string | null>(null);
 
   // Carrega épicos quando o projeto muda
   useEffect(() => {
     async function loadEpics() {
       if (!selectedProject) {
         setEpics([]);
+        setEpicsError(null);
         return;
       }
 
       setIsLoadingEpics(true);
+      setEpicsError(null);
       try {
         const result = await getEpics(selectedProject);
         if (result.success) {
           setEpics(result.epics);
+        } else {
+          setEpicsError(result.message || "Erro ao carregar épicos");
         }
       } catch (error) {
         console.error("Erro ao carregar épicos:", error);
+        setEpicsError("Erro inesperado ao carregar épicos");
       } finally {
         setIsLoadingEpics(false);
       }
@@ -123,6 +129,9 @@ export function ProjectSelect({
           </select>
           {isLoadingEpics && (
             <p className="text-sm text-gray-500 mt-1">Carregando épicos...</p>
+          )}
+          {epicsError && (
+            <p className="text-sm text-red-600 mt-1">{epicsError}</p>
           )}
         </div>
       </div>

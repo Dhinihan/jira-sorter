@@ -1,19 +1,21 @@
 import { getProjects } from "@/app/actions/jira";
 import { ProjectSelect } from "./components/ProjectSelect";
 import { IssuesTable } from "./components/IssuesTable";
-import { Pagination } from "./components/Pagination";
 import { getJiraCredentials } from "@/lib/cookies";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 
 interface IssuesPageProps {
-  searchParams: {
+  searchParams: Promise<{
     project?: string;
     epic?: string;
     page?: string;
-  };
+  }>;
 }
 
 export default async function IssuesPage({ searchParams }: IssuesPageProps) {
+  // Aguarda searchParams (Next.js 16+)
+  const params = await searchParams;
   // Verifica se usuário está conectado
   const credentials = await getJiraCredentials();
   if (!credentials) {
@@ -25,9 +27,9 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
   const projects = projectsResult.success ? projectsResult.projects : [];
 
   // Parse query params
-  const selectedProject = searchParams.project || "";
-  const selectedEpic = searchParams.epic || "";
-  const currentPage = parseInt(searchParams.page || "0", 10);
+  const selectedProject = params.project || "";
+  const selectedEpic = params.epic || "";
+  const currentPage = parseInt(params.page || "0", 10);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -41,12 +43,12 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
                 Selecione um projeto e filtros para buscar issues do backlog
               </p>
             </div>
-            <a
+            <Link
               href="/"
               className="text-blue-600 hover:text-blue-800 font-medium"
             >
               ← Voltar
-            </a>
+            </Link>
           </div>
         </div>
       </header>
@@ -67,6 +69,7 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
             projectKey={selectedProject}
             epicKey={selectedEpic}
             page={currentPage}
+            jiraDomain={credentials.domain}
           />
         ) : (
           <div className="bg-white rounded-lg shadow p-12 text-center">

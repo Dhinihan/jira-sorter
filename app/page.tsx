@@ -1,5 +1,6 @@
 import { getJiraCredentials, clearJiraCredentials } from "@/lib/cookies";
 import { testJiraConnection } from "@/app/actions/jira";
+import Link from "next/link";
 
 export default async function HomePage() {
   const credentials = await getJiraCredentials();
@@ -13,12 +14,12 @@ export default async function HomePage() {
           
           <div className="flex items-center gap-4">
             {connectionStatus.success && (
-              <a
+              <Link
                 href="/issues"
                 className="text-sm font-medium text-blue-600 hover:text-blue-800"
               >
                 Buscar Issues →
-              </a>
+              </Link>
             )}
             
             <div className="flex items-center gap-2">

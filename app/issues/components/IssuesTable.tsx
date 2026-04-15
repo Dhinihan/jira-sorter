@@ -8,9 +8,22 @@ interface IssuesTableProps {
   projectKey: string;
   epicKey: string;
   page: number;
+  jiraDomain: string;
 }
 
-export function IssuesTable({ projectKey, epicKey, page }: IssuesTableProps) {
+// Função pura para obter cor do status - movida para fora do componente
+function getStatusColor(status: string): string {
+  const statusLower = status.toLowerCase();
+  if (statusLower.includes("done") || statusLower.includes("closed")) {
+    return "bg-green-100 text-green-800";
+  } else if (statusLower.includes("progress")) {
+    return "bg-yellow-100 text-yellow-800";
+  } else {
+    return "bg-gray-100 text-gray-800";
+  }
+}
+
+export function IssuesTable({ projectKey, epicKey, page, jiraDomain }: IssuesTableProps) {
   const [issues, setIssues] = useState<JiraIssue[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
@@ -84,18 +97,6 @@ export function IssuesTable({ projectKey, epicKey, page }: IssuesTableProps) {
     );
   }
 
-  // Função para obter cor do status
-  function getStatusColor(status: string): string {
-    const statusLower = status.toLowerCase();
-    if (statusLower.includes("done") || statusLower.includes("closed")) {
-      return "bg-green-100 text-green-800";
-    } else if (statusLower.includes("progress")) {
-      return "bg-yellow-100 text-yellow-800";
-    } else {
-      return "bg-gray-100 text-gray-800";
-    }
-  }
-
   return (
     <div className="bg-white rounded-lg shadow">
       {/* Header com contagem */}
@@ -137,7 +138,7 @@ export function IssuesTable({ projectKey, epicKey, page }: IssuesTableProps) {
               <tr key={issue.key} className="hover:bg-gray-50">
                 <td className="px-4 py-3 whitespace-nowrap">
                   <a
-                    href={`https://${process.env.NEXT_PUBLIC_JIRA_DOMAIN}.atlassian.net/browse/${issue.key}`}
+                    href={`https://${jiraDomain}.atlassian.net/browse/${issue.key}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-blue-600 hover:text-blue-800 font-medium"
