@@ -46,7 +46,7 @@
 
 **Algoritmo escolhido:** Binary Insertion Sort (adaptado para interação humana)
 
-**Porquê:**
+**Por que:**
 - Incremental — a cada comparação a lista fica mais ordenada
 - Eficiente — O(n log n) comparações no total
 - Parada segura — se parar no meio, elementos processados estão ordenados entre si
