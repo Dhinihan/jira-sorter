@@ -298,7 +298,7 @@ export const getEpics = cache(async (projectKey: string): Promise<GetEpicsResult
     const jql = `project = ${escapeJqlValue(projectKey)} AND issuetype = Epic ORDER BY created DESC`;
     
     const response = await fetch(
-      `https://${credentials.domain}.atlassian.net/rest/api/3/search?jql=${encodeURIComponent(jql)}&maxResults=50&fields=id,key,summary`,
+      `https://${credentials.domain}.atlassian.net/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=50&fields=id,key,summary`,
       {
         method: "GET",
         headers: {
@@ -399,7 +399,7 @@ export async function searchIssues(
     }
 
     const response = await fetch(
-      `https://${credentials.domain}.atlassian.net/rest/api/3/search?jql=${encodeURIComponent(
+      `https://${credentials.domain}.atlassian.net/rest/api/3/search/jql?jql=${encodeURIComponent(
         jql
       )}&maxResults=${maxResults}&startAt=${startAt}&fields=id,key,summary,status,assignee,${EPIC_LINK_FIELD}`,
       {

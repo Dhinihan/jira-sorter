@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { saveAndTestCredentials } from "@/app/actions/jira";
 
 export default function ConfigPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [token, setToken] = useState("");
   const [domain, setDomain] = useState("");
@@ -21,6 +23,13 @@ export default function ConfigPage() {
     try {
       const response = await saveAndTestCredentials(email, token, domain);
       setResult(response);
+      
+      // Redireciona para home após sucesso
+      if (response.success) {
+        setTimeout(() => {
+          router.push("/");
+        }, 1500); // Pequeno delay para usuário ver mensagem de sucesso
+      }
     } catch {
       setResult({
         success: false,
@@ -56,7 +65,7 @@ export default function ConfigPage() {
                 value={domain}
                 onChange={(e) => setDomain(e.target.value)}
                 placeholder="meu-site"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors text-gray-900 placeholder:text-gray-400"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors text-black bg-white placeholder:text-gray-400"
                 required
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
@@ -81,7 +90,7 @@ export default function ConfigPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="seu@email.com"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors text-gray-900 placeholder:text-gray-400"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors text-black bg-white placeholder:text-gray-400"
               required
             />
           </div>
@@ -99,7 +108,7 @@ export default function ConfigPage() {
               value={token}
               onChange={(e) => setToken(e.target.value)}
               placeholder="ATATT..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors text-gray-900 placeholder:text-gray-400"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors text-black bg-white placeholder:text-gray-400"
               required
             />
             <p className="text-xs text-gray-500 mt-1">
