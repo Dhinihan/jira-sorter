@@ -102,7 +102,7 @@ export function ProjectSelect({
             id="project"
             value={selectedProject}
             onChange={(e) => handleProjectChange(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-gray-900"
           >
             <option value="">Selecione um projeto...</option>
             {projects.map((project) => (
@@ -131,7 +131,7 @@ export function ProjectSelect({
             value={selectedEpic}
             onChange={(e) => handleEpicChange(e.target.value)}
             disabled={!selectedProject || isLoadingEpics}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-gray-900 disabled:bg-gray-100 disabled:cursor-not-allowed"
           >
             <option value="">Todos os épicos</option>
             <option value="none">Sem épico</option>
