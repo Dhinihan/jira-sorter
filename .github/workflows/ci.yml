@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
 jobs:
   lint-and-build:
     name: Lint, Type Check & Build
@@ -35,44 +40,3 @@ jobs:
       - name: Build application
         run: npm run build
         continue-on-error: false
-
-      - name: Comment PR on failure
-        if: failure() && github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number
-            });
-            
-            const botComment = comments.find(comment => 
-              comment.user.type === 'Bot' && 
-              comment.body.includes('❌ CI Falhou')
-            );
-            
-            const body = `❌ CI Falhou
-            
-            Por favor, verifique os erros acima:
-            - ESLint: Problemas de código
-            - TypeScript: Erros de tipo
-            - Build: Problemas de compilação
-            
-            Corrija antes de fazer merge!`;
-            
-            if (botComment) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: botComment.id,
-                body: body
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body: body
-              });
-            }
