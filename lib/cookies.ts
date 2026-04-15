@@ -1,0 +1,55 @@
+"use server";
+
+import { cookies } from "next/headers";
+
+const JIRA_EMAIL_COOKIE = "jira_email";
+const JIRA_TOKEN_COOKIE = "jira_token";
+
+export interface JiraCredentials {
+  email: string;
+  token: string;
+}
+
+export async function setJiraCredentials(credentials: JiraCredentials) {
+  const cookieStore = await cookies();
+  
+  cookieStore.set(JIRA_EMAIL_COOKIE, credentials.email, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: 60 * 60 * 24 * 30, // 30 dias
+    path: "/",
+  });
+  
+  cookieStore.set(JIRA_TOKEN_COOKIE, credentials.token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: 60 * 60 * 24 * 30, // 30 dias
+    path: "/",
+  });
+}
+
+export async function getJiraCredentials(): Promise<JiraCredentials | null> {
+  const cookieStore = await cookies();
+  
+  const email = cookieStore.get(JIRA_EMAIL_COOKIE)?.value;
+  const token = cookieStore.get(JIRA_TOKEN_COOKIE)?.value;
+  
+  if (!email || !token) {
+    return null;
+  }
+  
+  return { email, token };
+}
+
+export async function clearJiraCredentials() {
+  const cookieStore = await cookies();
+  
+  cookieStore.delete(JIRA_EMAIL_COOKIE);
+  cookieStore.delete(JIRA_TOKEN_COOKIE);
+}
+
+export function encodeBasicAuth(email: string, token: string): string {
+  return Buffer.from(`${email}:${token}`).toString("base64");
+}
