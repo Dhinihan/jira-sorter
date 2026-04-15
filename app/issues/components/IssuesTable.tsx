@@ -162,7 +162,18 @@ export function IssuesTable({ projectKey, epicKey, page, jiraDomain }: IssuesTab
                   {issue.assignee || "-"}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                  {issue.epicName || issue.epicKey || "-"}
+                  {issue.epicKey ? (
+                    <a
+                      href={`https://${jiraDomain}.atlassian.net/browse/${issue.epicKey}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      {issue.epicName || issue.epicKey}
+                    </a>
+                  ) : (
+                    "-"
+                  )}
                 </td>
               </tr>
             ))}
