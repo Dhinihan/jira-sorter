@@ -50,6 +50,6 @@ export async function clearJiraCredentials() {
   cookieStore.delete(JIRA_TOKEN_COOKIE);
 }
 
-export function encodeBasicAuth(email: string, token: string): string {
+export async function encodeBasicAuth(email: string, token: string): Promise<string> {
   return Buffer.from(`${email}:${token}`).toString("base64");
 }

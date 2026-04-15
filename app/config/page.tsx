@@ -20,7 +20,7 @@ export default function ConfigPage() {
     try {
       const response = await saveAndTestCredentials(email, token);
       setResult(response);
-    } catch (error) {
+    } catch {
       setResult({
         success: false,
         message: "Erro ao conectar. Tente novamente.",

@@ -24,7 +24,7 @@ export async function testJiraConnection(): Promise<TestConnectionResult> {
       };
     }
     
-    const auth = encodeBasicAuth(credentials.email, credentials.token);
+    const auth = await encodeBasicAuth(credentials.email, credentials.token);
     
     // Testa a conexão buscando os recursos do usuário (sites/clouds)
     const response = await fetch(`${JIRA_BASE_URL}/oauth/token/accessible-resources`, {
@@ -99,7 +99,7 @@ export async function saveAndTestCredentials(
     }
     
     // Testa a conexão primeiro
-    const auth = encodeBasicAuth(email, token);
+    const auth = await encodeBasicAuth(email, token);
     const response = await fetch(`${JIRA_BASE_URL}/oauth/token/accessible-resources`, {
       method: "GET",
       headers: {

@@ -1,6 +1,5 @@
 import { getJiraCredentials, clearJiraCredentials } from "@/lib/cookies";
 import { testJiraConnection } from "@/app/actions/jira";
-import Link from "next/link";
 
 export default async function HomePage() {
   const credentials = await getJiraCredentials();
