@@ -30,7 +30,7 @@ function SortPageContent() {
   
   // Mock state for UI demonstration - Phase 6 will implement real algorithm
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [totalComparisons] = useState(23);
+  const totalComparisons = MOCK_PAIRS.length;
   const [isComplete, setIsComplete] = useState(false);
   
   // Get issues from URL params (mock for now)
