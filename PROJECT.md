@@ -12,12 +12,17 @@ Resolver o problema de priorização de backlog do Jira de forma intuitiva e vis
 
 ### Frontend
 - **Framework:** Next.js 14 (App Router)
+- **Renderização:** SSR (Server-Side Rendering) + Server Components
 - **Linguagem:** TypeScript
 - **Estilização:** Tailwind CSS
 - **Hospedagem:** Vercel (frontend + API Routes)
 
 ### Nota sobre Arquitetura
-Com Next.js na Vercel, podemos usar API Routes para o OAuth ao invés de Edge Functions separadas, simplificando a arquitetura.
+Com Next.js na Vercel usando SSR:
+- Server Components buscam dados do Jira diretamente no servidor
+- API Routes gerenciam OAuth e tokens de forma segura
+- Client Components cuidam da interatividade (pairwise comparison)
+- Tokens podem ficar em cookies httpOnly (mais seguro que localStorage)
 
 ### Backend (Serverless)
 - **Plataforma:** Next.js API Routes (serverless functions)

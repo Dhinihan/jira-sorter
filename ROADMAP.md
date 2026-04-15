@@ -37,18 +37,19 @@
 
 ---
 
-## Fase 3: Frontend - Autenticação
+## Fase 3: Frontend - Autenticação (SSR)
 **Status:** 🔴 Não Iniciada  
-**Duração Estimada:** 45 minutos
+**Duração Estimada:** 60 minutos
 
 ### Tarefas:
-- [ ] Criar tela de login/conectar Jira
-- [ ] Implementar chamada para `/api/auth/url`
-- [ ] Receber token do callback e salvar no localStorage
-- [ ] Criar context de autenticação (React Context API)
-- [ ] Criar hook `useAuth()`
-- [ ] Implementar logout
-- [ ] Mostrar usuário logado no header
+- [ ] Criar middleware de autenticação (Next.js middleware)
+- [ ] Configurar cookies httpOnly para tokens
+- [ ] Criar Server Component de login
+- [ ] Implementar Server Action para iniciar OAuth
+- [ ] Criar página de callback OAuth (Server Component)
+- [ ] Implementar refresh token automático
+- [ ] Criar context de autenticação para Client Components
+- [ ] Mostrar usuário logado no header (Server Component)
 
 ### Entregáveis:
 - ✅ Botão "Conectar com Jira" funcional
@@ -58,20 +59,21 @@
 
 ---
 
-## Fase 4: Frontend - Busca de Issues
+## Fase 4: Busca de Issues (SSR)
 **Status:** 🔴 Não Iniciada  
 **Duração Estimada:** 60 minutos
 
 ### Tarefas:
-- [ ] Criar formulário de filtros (projeto, épico)
-- [ ] Implementar chamada à Jira API para listar projetos
-- [ ] Implementar chamada para buscar épicos
-- [ ] Implementar busca de issues com JQL:
+- [ ] Criar Server Component de filtros
+- [ ] Criar Server Action para buscar projetos (SSR)
+- [ ] Criar Server Action para buscar épicos (SSR)
+- [ ] Criar Server Action para buscar issues com JQL:
   - `status in ("To Do", "Backlog", "Open") AND sprint is EMPTY`
-- [ ] Adicionar filtros opcionais (épico)
+- [ ] Server Component mostra lista de issues já carregadas
+- [ ] Adicionar filtros opcionais (épico) via query params
 - [ ] Mostrar preview da quantidade de issues
 - [ ] Limitar a 100 issues (validação)
-- [ ] Cache no localStorage das issues
+- [ ] Cache no servidor (React cache)
 
 ### Entregáveis:
 - ✅ Formulário de filtros funcional
