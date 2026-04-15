@@ -8,8 +8,9 @@ const EPIC_LINK_FIELD = process.env.NEXT_PUBLIC_JIRA_EPIC_FIELD || "customfield_
 
 // Helper para escapar valores JQL (previne injeção)
 function escapeJqlValue(value: string): string {
-  // Remove caracteres perigosos e quotes
-  return value.replace(/["'\\]/g, "");
+  // Remove caracteres perigosos e quotes, depois envolve em aspas
+  const clean = value.replace(/["'\\]/g, "");
+  return `"${clean}"`;
 }
 
 export interface TestConnectionResult {
