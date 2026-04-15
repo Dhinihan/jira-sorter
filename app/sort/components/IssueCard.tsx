@@ -64,7 +64,7 @@ export function IssueCard({ issue, onSelect, side, jiraDomain }: IssueCardProps)
       {/* Selection Button */}
       <button
         onClick={onSelect}
-        className={`mt-4 w-full py-4 px-6 rounded-lg font-semibold text-lg transition-colors ${
+        className={`mt-4 w-full py-4 px-6 rounded-lg font-semibold text-lg ${
           side === 'left'
             ? 'bg-green-600 hover:bg-green-700 text-white'
             : 'bg-blue-600 hover:bg-blue-700 text-white'
