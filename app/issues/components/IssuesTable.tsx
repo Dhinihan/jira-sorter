@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { searchIssues, JiraIssue } from "@/app/actions/jira";
 import { Pagination } from "./Pagination";
 
@@ -24,11 +25,18 @@ function getStatusColor(status: string): string {
 }
 
 export function IssuesTable({ projectKey, epicKey, page, jiraDomain }: IssuesTableProps) {
+  const router = useRouter();
   const [issues, setIssues] = useState<JiraIssue[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const handleStartSort = () => {
+    // Encode issues to pass via URL (Phase 6 will handle properly)
+    const issuesParam = encodeURIComponent(JSON.stringify(issues.map(i => i.key)));
+    router.push(`/sort?issues=${issuesParam}&domain=${jiraDomain}`);
+  };
 
   useEffect(() => {
     async function loadIssues() {
@@ -102,12 +110,22 @@ export function IssuesTable({ projectKey, epicKey, page, jiraDomain }: IssuesTab
       {/* Header com contagem */}
       <div className="px-6 py-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">
-            {total} {total === 1 ? "issue encontrada" : "issues encontradas"}
-          </h2>
-          <span className="text-sm text-gray-500">
-            Página {page + 1} de {totalPages}
-          </span>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">
+              {total} {total === 1 ? "issue encontrada" : "issues encontradas"}
+            </h2>
+            <span className="text-sm text-gray-500">
+              Página {page + 1} de {totalPages}
+            </span>
+          </div>
+          {issues.length > 0 && (
+            <button
+              onClick={handleStartSort}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+            >
+              Iniciar Ordenação
+            </button>
+          )}
         </div>
       </div>
 
