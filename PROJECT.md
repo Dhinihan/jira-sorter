@@ -11,14 +11,17 @@ Resolver o problema de priorização de backlog do Jira de forma intuitiva e vis
 ## Stack Tecnológica
 
 ### Frontend
-- **Framework:** React 18
-- **Estilização:** CSS Modules ou Styled Components
-- **Bundler:** Vite
-- **Hospedagem:** Surge.sh
+- **Framework:** Next.js 14 (App Router)
+- **Linguagem:** TypeScript
+- **Estilização:** Tailwind CSS
+- **Hospedagem:** Vercel (frontend + API Routes)
+
+### Nota sobre Arquitetura
+Com Next.js na Vercel, podemos usar API Routes para o OAuth ao invés de Edge Functions separadas, simplificando a arquitetura.
 
 ### Backend (Serverless)
-- **Plataforma:** Vercel Edge Functions
-- **Runtime:** Edge Runtime (V8 isolates)
+- **Plataforma:** Next.js API Routes (serverless functions)
+- **Runtime:** Node.js (API Routes)
 - **Linguagem:** TypeScript
 
 ### Integrações
@@ -32,19 +35,20 @@ Resolver o problema de priorização de backlog do Jira de forma intuitiva e vis
 ## Arquitetura
 
 ```
-┌─────────────────┐         ┌──────────────────┐         ┌──────────────┐
-│   Surge.sh      │         │  Vercel Edge     │         │   Jira Cloud │
-│   (Frontend)    │◄───────►│  Functions       │◄───────►│   API        │
-│                 │         │  (OAuth Proxy)   │         │              │
-└─────────────────┘         └──────────────────┘         └──────────────┘
-        │                            │
-        │                            │
-        ▼                            ▼
-┌─────────────────┐         ┌──────────────────┐
-│  localStorage   │         │  OAuth 2.0 Flow  │
-│  (Token/Cache)  │         │  - Authorization │
-│                 │         │  - Token Exchange│
-└─────────────────┘         └──────────────────┘
+┌─────────────────────────────────────┐         ┌──────────────┐
+│   Vercel                            │         │   Jira Cloud │
+│   ┌──────────────┐ ┌──────────────┐ │         │   API        │
+│   │  Next.js App │ │  API Routes  │◄├────────►│              │
+│   │  (Frontend)  │ │  (OAuth)     │ │         │              │
+│   └──────────────┘ └──────────────┘ │         │              │
+└─────────────────────────────────────┘         └──────────────┘
+        │
+        │
+        ▼
+┌─────────────────┐
+│  localStorage   │
+│  (Token/Cache)  │
+└─────────────────┘
 ```
 
 ## Funcionalidades Principais
@@ -83,7 +87,7 @@ Resolver o problema de priorização de backlog do Jira de forma intuitiva e vis
 - [ ] Ordem é aplicada no Jira (alteração de rank)
 - [ ] Contador de progresso mostra avanço (ex: "15 de 30 comparações")
 - [ ] Design responsivo funciona em mobile e desktop
-- [ ] Deploy funcional no Surge + Vercel
+- [ ] Deploy funcional na Vercel (frontend + API)
 
 ## Restrições
 

@@ -2,14 +2,14 @@
 
 ## Fase 1: Setup e Estrutura
 **Status:** 🟡 Em Planejamento  
-**Duração Estimada:** 45 minutos
+**Duração Estimada:** 30 minutos
 
 ### Tarefas:
-- [ ] Criar estrutura de pastas (frontend/, api/)
-- [ ] Inicializar projeto React com Vite
+- [ ] Inicializar projeto Next.js com create-next-app
 - [ ] Configurar TypeScript
-- [ ] Instalar dependências (React Router, Axios, etc.)
-- [ ] Criar conta/projetos no Vercel
+- [ ] Instalar Tailwind CSS
+- [ ] Instalar dependências adicionais (shadcn/ui, etc.)
+- [ ] Criar projeto no Vercel
 - [ ] Configurar variáveis de ambiente
 
 ### Entregáveis:
@@ -19,16 +19,15 @@
 
 ---
 
-## Fase 2: Vercel Edge Function - OAuth
+## Fase 2: API Routes - OAuth
 **Status:** 🔴 Não Iniciada  
 **Duração Estimada:** 60 minutos
 
 ### Tarefas:
-- [ ] Criar Edge Function `/api/auth/url` (gerar URL de autorização)
-- [ ] Criar Edge Function `/api/auth/callback` (receber código, trocar por token)
-- [ ] Criar Edge Function `/api/auth/refresh` (renovar token)
+- [ ] Criar API Route `/app/api/auth/url/route.ts` (gerar URL de autorização)
+- [ ] Criar API Route `/app/api/auth/callback/route.ts` (receber código, trocar por token)
+- [ ] Criar API Route `/app/api/auth/refresh/route.ts` (renovar token)
 - [ ] Implementar PKCE para segurança
-- [ ] Configurar CORS (Surge pode chamar Vercel)
 - [ ] Testar fluxo completo de autenticação
 
 ### Entregáveis:
@@ -155,18 +154,18 @@
 **Duração Estimada:** 30 minutos
 
 ### Tarefas:
-- [ ] Build do React (vite build)
-- [ ] Deploy frontend no Surge
-- [ ] Deploy Edge Functions no Vercel
-- [ ] Configurar variáveis de ambiente no Vercel
+- [ ] Build do Next.js (next build)
+- [ ] Deploy na Vercel (frontend + API integrados)
+- [ ] Configurar variáveis de ambiente na Vercel
+- [ ] Configurar domínio customizado (opcional)
 - [ ] Testar fluxo completo end-to-end
 - [ ] Testar responsividade (mobile)
 - [ ] Testar rate limits
 - [ ] Documentar URL do deploy
 
 ### Entregáveis:
-- ✅ Site no ar no Surge
-- ✅ API funcionando no Vercel
+- ✅ Site no ar na Vercel
+- ✅ API Routes funcionando
 - ✅ Testes passam
 - ✅ Documentação atualizada
 
