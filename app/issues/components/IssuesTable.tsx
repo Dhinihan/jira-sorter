@@ -22,9 +22,10 @@ export function IssuesTable({ projectKey, epicKey, page, jiraDomain }: IssuesTab
   const [error, setError] = useState<string | null>(null);
 
   const handleStartSort = () => {
-    // Encode issues to pass via URL (Phase 6 will handle properly)
-    const issuesParam = encodeURIComponent(JSON.stringify(issues.map(i => i.key)));
-    router.push(`/sort?issues=${issuesParam}&domain=${jiraDomain}`);
+    // Generate unique payload ID and store in sessionStorage
+    const payloadId = `sort-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    sessionStorage.setItem(payloadId, JSON.stringify(issues));
+    router.push(`/sort?payloadId=${payloadId}&domain=${jiraDomain}`);
   };
 
   useEffect(() => {

@@ -27,20 +27,45 @@ function SortPageContent() {
   
   // Get domain from URL params
   const jiraDomain = searchParams.get('domain') || 'empresa';
+  const payloadId = searchParams.get('payloadId');
   
-  // Mock state for UI demonstration - Phase 6 will implement real algorithm
+  // Load issues from sessionStorage or fallback to mock
+  const getInitialIssues = (): JiraIssue[] => {
+    if (typeof window !== 'undefined' && payloadId) {
+      const stored = sessionStorage.getItem(payloadId);
+      if (stored) {
+        try {
+          return JSON.parse(stored);
+        } catch {
+          // Fall through to mock data
+        }
+      }
+    }
+    // Fallback: extract unique issues from MOCK_PAIRS
+    return Array.from(new Set(MOCK_PAIRS.flat().map(i => i.key)))
+      .map(key => MOCK_PAIRS.flat().find(i => i.key === key)!);
+  };
+  
+  const [issues] = useState<JiraIssue[]>(getInitialIssues);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const totalComparisons = MOCK_PAIRS.length;
   const [isComplete, setIsComplete] = useState(false);
   
-  // Get issues from URL params (mock for now)
-  const currentPair = MOCK_PAIRS[currentIndex] || MOCK_PAIRS[0];
+  // Create pairs from issues for demo
+  const pairs: Array<[JiraIssue, JiraIssue]> = issues && issues.length >= 2
+    ? Array.from({ length: Math.min(issues.length - 1, 3) }, (_, i) => [
+        issues[i],
+        issues[i + 1] || issues[0]
+      ])
+    : MOCK_PAIRS;
+  
+  const totalComparisons = pairs.length;
+  const currentPair = pairs[currentIndex] || pairs[0];
   
   const handleChoice = (side: 'left' | 'right') => {
     // Mock behavior - just advance to next pair
     console.log('Choice made:', side);
     
-    if (currentIndex < MOCK_PAIRS.length - 1) {
+    if (currentIndex < pairs.length - 1) {
       setCurrentIndex(currentIndex + 1);
     } else {
       setIsComplete(true);
