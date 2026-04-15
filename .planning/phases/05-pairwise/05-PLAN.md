@@ -21,7 +21,7 @@ This plan implements ONLY the visual interface for pairwise comparison. The algo
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │  /sort/page.tsx (Client Component - UI ONLY)                │
 │  ┌─────────────────────────────────────────────────────────┐│
