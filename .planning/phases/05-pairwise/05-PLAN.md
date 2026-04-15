@@ -160,10 +160,11 @@ export default function SortPage() {
 ```
 
 **Features:**
-- Header with: Project name, Progress text, Save button
+- Header with: Project name, Progress text, Save button (localStorage only)
 - Two IssueCard components side by side (or stacked on mobile)
-- Handle save: store sortedIssues to localStorage + show confirmation
+- Handle save: store state to localStorage + show confirmation
 - Completion screen when all comparisons done
+- NO Jira write operations in this phase
 
 **Files Modified:**
 - `app/sort/page.tsx` (new)
@@ -197,32 +198,32 @@ Modify `app/issues/components/IssuesTable.tsx`
 
 ---
 
-### Task 5: Handle Sort Completion and Save
+### Task 5: Handle Sort Completion and Local Save
 
 Create completion flow in `app/sort/page.tsx`
 
 **Features:**
 - When isComplete: show "Ordenação Completa" screen
 - Display: "Você comparou X issues em Y comparações"
-- Button "Salvar no Jira" → calls Server Action to apply ranks
-- Button "Voltar para Issues" → returns to /issues
 - Preview: show ordered list (numbered 1, 2, 3...)
+- Button "Ver no Jira" → opens Jira backlog in new tab (no write)
+- Button "Voltar para Issues" → returns to /issues
 
-**Server Action:**
-Create `app/sort/actions/saveOrder.ts`
-- Receive ordered issue keys
-- Call Jira API to update ranks (Phase 6/7 will implement full version)
-- For now: mock or basic implementation
+**NO JIRA WRITE IN THIS PHASE** - Writing to Jira will be implemented in Phase 7.
+
+**Local Persistence:**
+- During sorting: auto-save state to localStorage every comparison
+- "Salvar" button: manually trigger localStorage save + show confirmation
+- On return: check localStorage for saved session, offer to resume
 
 **Files Modified:**
 - `app/sort/page.tsx`
-- `app/sort/actions/saveOrder.ts` (new)
 
 **Verification:**
 - [ ] Completion screen shows when done
 - [ ] Correct stats displayed
 - [ ] Preview list shows in correct order
-- [ ] Save button triggers action
+- [ ] NO Server Action calls to Jira write API
 
 ---
 
@@ -259,3 +260,5 @@ Create `app/sort/actions/saveOrder.ts`
 - For 50 issues: max ~283 comparisons
 - State persisted in localStorage for resume capability
 - Focus on simplicity and speed (no animations, instant transitions)
+- **NO JIRA WRITE OPERATIONS** - This phase is UI/algorithm only
+- Jira write will be implemented in Phase 7 (Aplicação de Rank no Jira)
