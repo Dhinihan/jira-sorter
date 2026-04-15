@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { IssueCard } from './components';
@@ -22,7 +22,7 @@ const MOCK_PAIRS: Array<[JiraIssue, JiraIssue]> = [
   ],
 ];
 
-export default function SortPage() {
+function SortPageContent() {
   const searchParams = useSearchParams();
   
   // Get domain from URL params
@@ -163,5 +163,20 @@ export default function SortPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function SortPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Carregando...</p>
+        </div>
+      </div>
+    }>
+      <SortPageContent />
+    </Suspense>
   );
 }
