@@ -2,8 +2,6 @@
 
 import { getJiraCredentials, encodeBasicAuth } from "@/lib/cookies";
 
-const JIRA_BASE_URL = "https://api.atlassian.com";
-
 export interface TestConnectionResult {
   success: boolean;
   message: string;
@@ -26,8 +24,8 @@ export async function testJiraConnection(): Promise<TestConnectionResult> {
     
     const auth = await encodeBasicAuth(credentials.email, credentials.token);
     
-    // Testa a conexão buscando os recursos do usuário (sites/clouds)
-    const response = await fetch(`${JIRA_BASE_URL}/oauth/token/accessible-resources`, {
+    // Testa a conexão usando o endpoint /myself do site específico
+    const response = await fetch(`https://${credentials.domain}.atlassian.net/rest/api/3/myself`, {
       method: "GET",
       headers: {
         "Authorization": `Basic ${auth}`,
@@ -43,25 +41,29 @@ export async function testJiraConnection(): Promise<TestConnectionResult> {
         };
       }
       
+      if (response.status === 404) {
+        return {
+          success: false,
+          message: "Domínio do Jira não encontrado. Verifique o domínio.",
+        };
+      }
+      
       return {
         success: false,
         message: `Erro na API do Jira: ${response.status} ${response.statusText}`,
       };
     }
     
-    const resources = await response.json();
-    
-    if (!resources || resources.length === 0) {
-      return {
-        success: false,
-        message: "Nenhum site do Jira encontrado para este token",
-      };
-    }
+    const userData = await response.json();
     
     // Se chegou aqui, a conexão funcionou
     return {
       success: true,
-      message: `Conectado! ${resources.length} site(s) do Jira encontrado(s).`,
+      message: `Conectado como ${userData.displayName || userData.emailAddress}!`,
+      user: {
+        displayName: userData.displayName,
+        emailAddress: userData.emailAddress,
+      },
     };
     
   } catch (error) {
@@ -104,9 +106,9 @@ export async function saveAndTestCredentials(
       .replace(/^https?:\/\//, "")
       .replace(/\.atlassian\.net\/?$/, "");
     
-    // Testa a conexão primeiro
+    // Testa a conexão usando o endpoint /myself do site específico
     const auth = await encodeBasicAuth(email, token);
-    const response = await fetch(`${JIRA_BASE_URL}/oauth/token/accessible-resources`, {
+    const response = await fetch(`https://${cleanDomain}.atlassian.net/rest/api/3/myself`, {
       method: "GET",
       headers: {
         "Authorization": `Basic ${auth}`,
@@ -122,20 +124,20 @@ export async function saveAndTestCredentials(
         };
       }
       
+      if (response.status === 404) {
+        return {
+          success: false,
+          message: "Domínio do Jira não encontrado. Verifique se o domínio está correto.",
+        };
+      }
+      
       return {
         success: false,
         message: `Erro na API do Jira: ${response.status}`,
       };
     }
     
-    const resources = await response.json();
-    
-    if (!resources || resources.length === 0) {
-      return {
-        success: false,
-        message: "Token válido, mas nenhum site do Jira encontrado",
-      };
-    }
+    const userData = await response.json();
     
     // Se chegou aqui, salva as credenciais
     const { setJiraCredentials } = await import("@/lib/cookies");
@@ -143,7 +145,7 @@ export async function saveAndTestCredentials(
     
     return {
       success: true,
-      message: `Conectado com sucesso! ${resources.length} site(s) encontrado(s).`,
+      message: `Conectado como ${userData.displayName || userData.emailAddress}!`,
     };
     
   } catch (error) {
