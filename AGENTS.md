@@ -3,3 +3,13 @@
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
+
+---
+
+## 🌐 Deploy do Projeto
+
+**URL de produção:** https://jira-sorter.vercel.app/
+
+**Plataforma:** Vercel
+
+Sempre verifique o deploy após fazer push para a branch main.
