@@ -83,15 +83,28 @@
 
 ## ✅ Checklist de Correção
 
-- [ ] Bug 1: Adicionar redirect após sucesso em `saveAndTestCredentials`
-- [ ] Bug 2: Melhorar UX da home (link mais visível ou redirect)
-- [ ] Bug 3: Corrigir cor do texto nos inputs
-- [ ] Bug 4: Migrar para novo endpoint `/rest/api/3/search/jql`
+- [x] Bug 1: Adicionar redirect após sucesso em `saveAndTestCredentials` ✅
+- [ ] Bug 2: Melhorar UX da home (link mais visível ou redirect) - NÃO IMPLEMENTADO
+- [x] Bug 3: Corrigir cor do texto nos inputs ✅
+- [x] Bug 4: Migrar para novo endpoint `/rest/api/3/search/jql` ✅
 
 ---
 
-## 📝 Notas
+## 📝 Status
 
-- Todos os bugs são de UX/UI, não afetam funcionalidade core
-- Prioridade: Bug 1 (redirect) > Bug 3 (cores) > Bug 2 (dashboard)
+**Commit:** `9bcf313`  
+**Data:** 2026-04-15  
+**Validação:** lint ✓ build ✓
+
+### Correções Implementadas:
+
+1. **Redirect após salvar:** Adicionado `useRouter` com redirect para `/` após sucesso
+2. **Cor dos inputs:** Alterado `text-gray-900` para `text-black` + `bg-white` explícito
+3. **API Jira:** Migrado de `/search` para `/search/jql` (endpoint descontinuado retornava 410)
+
+### Não Implementado:
+- Bug 2 (UX home): Aguardando definição se quer dashboard ou redirect automático
+
+### Prioridade Atual:
+Bug 4 (API - CRÍTICO) > Bug 1 (Redirect - Alta) > Bug 3 (Cores - Média)
 - Testar em localhost após cada correção
