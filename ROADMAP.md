@@ -173,24 +173,85 @@
 
 ---
 
+## Workflow GSD - Git Strategy
+
+### **Branching Strategy: Feature Branches + Pull Requests**
+
+Cada fase será desenvolvida em uma branch separada e mergeada via Pull Request.
+
+#### **Padrão de Nomenclatura:**
+- `main` - Branch principal (produção)
+- `gsd/phase-{numero}-{nome}` - Branches de cada fase
+- Ex: `gsd/phase-2-oauth-api`, `gsd/phase-3-auth-ssr`
+
+#### **Fluxo de Trabalho:**
+
+1. **Criar branch para a fase:**
+   ```bash
+   git checkout -b gsd/phase-2-oauth-api
+   ```
+
+2. **Desenvolver a fase completa**
+
+3. **Commit com mensagem descritiva:**
+   ```bash
+   git commit -m "feat(phase-2): implement OAuth API routes
+   
+   - Add /api/auth/url endpoint
+   - Add /api/auth/callback endpoint  
+   - Add /api/auth/refresh endpoint
+   - Implement PKCE security
+   
+   Closes phase-2"
+   ```
+
+4. **Push da branch:**
+   ```bash
+   git push origin gsd/phase-2-oauth-api
+   ```
+
+5. **Criar Pull Request no GitHub:**
+   - Título: `[GSD Phase 2] OAuth API Routes`
+   - Descrição: Checklist de entregáveis da fase
+   - Review: Você revisa antes de mergear
+   - Merge: Squash and merge para manter histórico limpo
+
+6. **Voltar para main e atualizar:**
+   ```bash
+   git checkout main
+   git pull origin main
+   ```
+
+#### **Vantagens:**
+- ✅ Código revisado antes de entrar na main
+- ✅ Histórico organizado por fases
+- ✅ Facilidade de rollback se necessário
+- ✅ Documentação automática via PRs
+
+---
+
 ## Timeline Estimada
 
 ```
-Fase 1 (Setup)          [====] 45min
-Fase 2 (OAuth API)      [====] 60min
-Fase 3 (Auth UI)        [====] 45min
-Fase 4 (Busca Issues)   [====] 60min
-Fase 5 (Pairwise UI)    [====] 75min
-Fase 6 (Algoritmo)      [====] 45min
-Fase 7 (Aplica Rank)    [====] 60min
-Fase 8 (Deploy)         [====] 30min
+Fase 1 (Setup)          [====] 45min  ✅ CONCLUÍDO (main)
+Fase 2 (OAuth API)      [====] 60min  🔄 PR: gsd/phase-2-oauth-api
+Fase 3 (Auth UI)        [====] 45min  ⏳ Branch: gsd/phase-3-auth-ssr
+Fase 4 (Busca Issues)   [====] 60min  ⏳ Branch: gsd/phase-4-issues
+Fase 5 (Pairwise UI)    [====] 75min  ⏳ Branch: gsd/phase-5-pairwise
+Fase 6 (Algoritmo)      [====] 45min  ⏳ Branch: gsd/phase-6-algorithm
+Fase 7 (Aplica Rank)    [====] 60min  ⏳ Branch: gsd/phase-7-rank
+Fase 8 (Deploy)         [====] 30min  ⏳ Branch: gsd/phase-8-deploy
 
 Total Estimado: ~6 horas
 ```
 
 ## Notas GSD
 
+- Cada fase em branch separada
+- Pull Request obrigatório para merge
+- Revisão de código antes de prosseguir
+- Squash commits para histórico limpo
 - Priorizar funcionalidades core (RF01-RF07)
-- Testar cada fase antes de prosseguir
-- Se encontrar bloqueio, documentar e ajustar roadmap
+- Testar cada fase antes de fazer PR
+- Se encontrar bloqueio, documentar no PR
 - Manter código limpo e documentado
