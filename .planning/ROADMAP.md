@@ -20,7 +20,7 @@
 ---
 
 ## Fase 2: Configuração de Personal API Token
-**Status:** ✅ CONCLUÍDA  
+**Status:** 🔴 Não Iniciada  
 **Duração Estimada:** 30 minutos
 
 ### Tarefas:
@@ -39,7 +39,7 @@
 ---
 
 ## Fase 3: Frontend - Configuração e Validação
-**Status:** ✅ CONCLUÍDA (mergeada com Fase 2)  
+**Status:** 🔴 Não Iniciada  
 **Duração Estimada:** 30 minutos
 
 ### Tarefas:
@@ -233,9 +233,9 @@ Cada fase será desenvolvida em uma branch separada e mergeada via Pull Request.
 
 ```
 Fase 1 (Setup)          [====] 45min  ✅ CONCLUÍDO (main)
-Fase 2 (Config API)     [====] 60min  ✅ CONCLUÍDO (main)  
-Fase 3 (Auth UI)        [====] 45min  ✅ CONCLUÍDO (main) - mergeada na Fase 2
-Fase 4 (Busca Issues)   [====] 60min  🔄 EM ANDAMENTO
+Fase 2 (OAuth API)      [====] 60min  🔄 PR: gsd/phase-2-oauth-api
+Fase 3 (Auth UI)        [====] 45min  ⏳ Branch: gsd/phase-3-auth-ssr
+Fase 4 (Busca Issues)   [====] 60min  ⏳ Branch: gsd/phase-4-issues
 Fase 5 (Pairwise UI)    [====] 75min  ⏳ Branch: gsd/phase-5-pairwise
 Fase 6 (Algoritmo)      [====] 45min  ⏳ Branch: gsd/phase-6-algorithm
 Fase 7 (Aplica Rank)    [====] 60min  ⏳ Branch: gsd/phase-7-rank

@@ -12,6 +12,15 @@ export default async function HomePage() {
           <h1 className="text-xl font-bold text-gray-900">Jira Sorter</h1>
           
           <div className="flex items-center gap-4">
+            {connectionStatus.success && (
+              <a
+                href="/issues"
+                className="text-sm font-medium text-blue-600 hover:text-blue-800"
+              >
+                Buscar Issues →
+              </a>
+            )}
+            
             <div className="flex items-center gap-2">
               <span
                 className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${
