@@ -80,14 +80,15 @@ export interface SaveCredentialsResult {
 
 export async function saveAndTestCredentials(
   email: string,
-  token: string
+  token: string,
+  domain: string
 ): Promise<SaveCredentialsResult> {
   try {
     // Valida básico
-    if (!email || !token) {
+    if (!email || !token || !domain) {
       return {
         success: false,
-        message: "Email e token são obrigatórios",
+        message: "Email, token e domínio são obrigatórios",
       };
     }
     
@@ -97,6 +98,11 @@ export async function saveAndTestCredentials(
         message: "Email inválido",
       };
     }
+    
+    // Limpa o domínio (remove https:// e .atlassian.net se o usuário incluir)
+    const cleanDomain = domain
+      .replace(/^https?:\/\//, "")
+      .replace(/\.atlassian\.net\/?$/, "");
     
     // Testa a conexão primeiro
     const auth = await encodeBasicAuth(email, token);
@@ -133,7 +139,7 @@ export async function saveAndTestCredentials(
     
     // Se chegou aqui, salva as credenciais
     const { setJiraCredentials } = await import("@/lib/cookies");
-    await setJiraCredentials({ email, token });
+    await setJiraCredentials({ email, token, domain: cleanDomain });
     
     return {
       success: true,

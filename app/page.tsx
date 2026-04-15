@@ -53,6 +53,17 @@ export default async function HomePage() {
           {credentials && (
             <div className="space-y-2 text-sm text-gray-600">
               <p>
+                <span className="font-medium">Domínio:</span>{" "}
+                <a 
+                  href={`https://${credentials.domain}.atlassian.net`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline"
+                >
+                  {credentials.domain}.atlassian.net
+                </a>
+              </p>
+              <p>
                 <span className="font-medium">Email:</span> {credentials.email}
               </p>
               <p>
