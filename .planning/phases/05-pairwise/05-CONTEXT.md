@@ -42,13 +42,35 @@
 - Tipografia e espaçamentos (seguir padrão do Tailwind)
 - Responsividade mobile (cards empilhados verticalmente em telas pequenas)
 
+## 7. Algoritmo de Ordenação
+
+**Algoritmo escolhido:** Binary Insertion Sort (adaptado para interação humana)
+
+**Porquê:**
+- Incremental — a cada comparação a lista fica mais ordenada
+- Eficiente — O(n log n) comparações no total
+- Parada segura — se parar no meio, elementos processados estão ordenados entre si
+- Humano-friendly — só precisa comparar para encontrar posição de inserção
+
+**Funcionamento:**
+1. Mantém uma lista interna ordenada (inicialmente vazia)
+2. Para cada nova issue (em ordem original do backlog):
+   - Faz busca binária para encontrar posição correta na lista ordenada
+   - Comparações são feitas via UI pairwise (humano decide)
+3. Ao final (ou ao clicar "Salvar"), aplica ranks no Jira na ordem resultante
+
+**Seleção de issues:** Ordem original do backlog (do Jira)
+
+**Persistência:** Algoritmo mantém estado localmente; ao salvar, aplica todos os ranks no Jira de uma vez
+
 ## Deferred Ideas
 
 - Atalhos de teclado (← → ou 1 2) — sugerido para funcionalidade futura
 - Animações suaves (fade/slide) — pode ser adicionado depois
 - Opção de empate entre issues
-- Preview da lista ordenada parcial
+- Preview da lista ordenada parcial (antes de salvar)
 - Botão "voltar" na comparação anterior
+- Aplicação parcial no Jira a cada comparação (vs. só ao salvar)
 
 ---
 *Context gathered for phase planning*
