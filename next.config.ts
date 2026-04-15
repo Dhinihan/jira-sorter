@@ -1,8 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: 'export',
-  distDir: 'dist',
+  // Configuração padrão para Vercel (SSR + API Routes)
 };
 
 export default nextConfig;
