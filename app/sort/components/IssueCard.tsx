@@ -28,7 +28,7 @@ export function IssueCard({ issue, onSelect, side, jiraDomain }: IssueCardProps)
   return (
     <div className="flex flex-col h-full">
       {/* Card */}
-      <div className="flex-1 bg-white rounded-lg shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow">
+      <div className="flex-1 bg-white rounded-lg shadow-md border border-gray-200 p-6 hover:shadow-lg">
         {/* Issue Key with Link */}
         <div className="mb-4">
           <a
