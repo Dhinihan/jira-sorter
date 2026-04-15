@@ -1,23 +1,13 @@
 'use client';
 
 import { JiraIssue } from '@/app/actions/jira';
+import { getStatusColor } from '@/lib/utils';
 
 interface IssueCardProps {
   issue: JiraIssue;
   onSelect: () => void;
   side: 'left' | 'right';
   jiraDomain: string;
-}
-
-function getStatusColor(status: string): string {
-  const statusLower = status.toLowerCase();
-  if (statusLower.includes('done') || statusLower.includes('closed')) {
-    return 'bg-green-100 text-green-800';
-  } else if (statusLower.includes('progress')) {
-    return 'bg-yellow-100 text-yellow-800';
-  } else {
-    return 'bg-gray-100 text-gray-800';
-  }
 }
 
 export function IssueCard({ issue, onSelect, side, jiraDomain }: IssueCardProps) {
