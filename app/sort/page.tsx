@@ -4,32 +4,18 @@ import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { IssueCard } from './components';
+import { useBinaryInsertionSort } from './hooks';
 import { JiraIssue } from '@/app/actions/jira';
-
-// Mock data for UI demonstration - Phase 6 will implement real algorithm
-const MOCK_PAIRS: Array<[JiraIssue, JiraIssue]> = [
-  [
-    { id: '1', key: 'PROJ-101', summary: 'Implementar autenticação OAuth', status: 'To Do', epicKey: 'PROJ-10', epicName: 'Login e Segurança' },
-    { id: '2', key: 'PROJ-102', summary: 'Criar página de dashboard', status: 'Backlog', epicKey: 'PROJ-11', epicName: 'Interface Principal' },
-  ],
-  [
-    { id: '3', key: 'PROJ-103', summary: 'Configurar CI/CD pipeline', status: 'Open', epicKey: 'PROJ-12', epicName: 'DevOps' },
-    { id: '1', key: 'PROJ-101', summary: 'Implementar autenticação OAuth', status: 'To Do', epicKey: 'PROJ-10', epicName: 'Login e Segurança' },
-  ],
-  [
-    { id: '4', key: 'PROJ-104', summary: 'Otimizar queries do banco', status: 'To Do', epicKey: 'PROJ-13', epicName: 'Performance' },
-    { id: '3', key: 'PROJ-103', summary: 'Configurar CI/CD pipeline', status: 'Open', epicKey: 'PROJ-12', epicName: 'DevOps' },
-  ],
-];
 
 function SortPageContent() {
   const searchParams = useSearchParams();
-  
-  // Get domain from URL params
+
+  // Get domain and payloadId from URL params
   const jiraDomain = searchParams.get('domain') || 'empresa';
   const payloadId = searchParams.get('payloadId');
-  
-  // Load issues from sessionStorage or fallback to mock
+  const sessionId = searchParams.get('sessionId');
+
+  // Load issues from sessionStorage
   const getInitialIssues = (): JiraIssue[] => {
     if (typeof window !== 'undefined' && payloadId) {
       const stored = sessionStorage.getItem(payloadId);
@@ -37,47 +23,84 @@ function SortPageContent() {
         try {
           return JSON.parse(stored);
         } catch {
-          // Fall through to mock data
+          console.error('Failed to parse stored issues');
         }
       }
     }
-    // Fallback: extract unique issues from MOCK_PAIRS
-    return Array.from(new Set(MOCK_PAIRS.flat().map(i => i.key)))
-      .map(key => MOCK_PAIRS.flat().find(i => i.key === key)!);
+    return [];
   };
-  
+
   const [issues] = useState<JiraIssue[]>(getInitialIssues);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isComplete, setIsComplete] = useState(false);
-  
-  // Create pairs from issues for demo
-  const pairs: Array<[JiraIssue, JiraIssue]> = issues && issues.length >= 2
-    ? Array.from({ length: Math.min(issues.length - 1, 3) }, (_, i) => [
-        issues[i],
-        issues[i + 1] || issues[0]
-      ])
-    : MOCK_PAIRS;
-  
-  const totalComparisons = pairs.length;
-  const currentPair = pairs[currentIndex] || pairs[0];
-  
-  const handleChoice = (side: 'left' | 'right') => {
-    // Mock behavior - just advance to next pair
-    console.log('Choice made:', side);
-    
-    if (currentIndex < pairs.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-    } else {
-      setIsComplete(true);
-    }
-  };
-  
+  const projectKey = searchParams.get('project') || 'default';
+
+  // Use the real Binary Insertion Sort hook
+  const {
+    currentPair,
+    progress,
+    handleChoice,
+    sortedResult,
+    isComplete,
+    canSave,
+    canUndo,
+    handleUndo,
+    handleRestart,
+    isExpired,
+    maxComparisons,
+  } = useBinaryInsertionSort(issues, projectKey, sessionId);
+
   const handleSave = () => {
-    // UI only - Phase 6 will implement real save
-    alert('Funcionalidade de salvar será implementada na Fase 6!');
+    if (!canSave) return;
+    // Save to localStorage (already done by hook)
+    alert('Progresso salvo! Você pode fechar e voltar depois.');
   };
-  
-  if (isComplete) {
+
+  // Handle expired session
+  if (isExpired) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white rounded-lg shadow p-8 max-w-md text-center">
+          <div className="text-6xl mb-4">⏰</div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            Sessão Expirada
+          </h2>
+          <p className="text-gray-600 mb-6">
+            Sua sessão de ordenação expirou (7 dias). Você precisa começar novamente.
+          </p>
+          <Link
+            href="/issues"
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+          >
+            Voltar para Issues
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // No issues loaded
+  if (issues.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white rounded-lg shadow p-8 max-w-md text-center">
+          <div className="text-6xl mb-4">📋</div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            Nenhuma Issue Selecionada
+          </h2>
+          <p className="text-gray-600 mb-6">
+            Selecione issues na página anterior para começar a ordenação.
+          </p>
+          <Link
+            href="/issues"
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+          >
+            Voltar para Issues
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (isComplete && sortedResult) {
     return (
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
@@ -94,30 +117,64 @@ function SortPageContent() {
             </div>
           </div>
         </header>
-        
+
         <main className="max-w-4xl mx-auto px-4 py-12">
-          <div className="bg-white rounded-lg shadow p-8 text-center">
-            <div className="text-6xl mb-4">🎉</div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
-              Ordenação Finalizada!
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Você comparou {MOCK_PAIRS.length} issues em {MOCK_PAIRS.length} comparações.
-            </p>
-            <p className="text-sm text-gray-500 mb-8">
-              (Na implementação completa, aqui mostraria a lista ordenada)
-            </p>
-            
-            <div className="flex justify-center gap-4">
+          <div className="bg-white rounded-lg shadow p-8">
+            <div className="text-center mb-8">
+              <div className="text-6xl mb-4">🎉</div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                Ordenação Finalizada!
+              </h2>
+              <p className="text-gray-600">
+                Você ordenou {sortedResult.length} issues.
+              </p>
+            </div>
+
+            {/* Result Preview */}
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Resultado:</h3>
+              <ol className="space-y-2">
+                {sortedResult.map((issue, index) => (
+                  <li
+                    key={issue.key}
+                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+                  >
+                    <span className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-800 rounded-full font-semibold text-sm">
+                      {index + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <a
+                        href={`https://${jiraDomain}.atlassian.net/browse/${issue.key}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 font-medium"
+                      >
+                        {issue.key}
+                      </a>
+                      <p className="text-gray-700 truncate">{issue.summary}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-col sm:flex-row justify-center gap-4">
               <button
                 onClick={() => window.open(`https://${jiraDomain}.atlassian.net`, '_blank')}
                 className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
               >
                 Ver no Jira
               </button>
+              <button
+                onClick={handleRestart}
+                className="px-6 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium"
+              >
+                Recomeçar
+              </button>
               <Link
                 href="/issues"
-                className="px-6 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium"
+                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium text-center"
               >
                 Voltar para Issues
               </Link>
@@ -127,7 +184,7 @@ function SortPageContent() {
       </div>
     );
   }
-  
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -140,16 +197,25 @@ function SortPageContent() {
                 Escolha qual issue é mais importante
               </p>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              {canUndo && (
+                <button
+                  onClick={handleUndo}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium"
+                >
+                  ← Voltar
+                </button>
+              )}
               <button
                 onClick={handleSave}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium"
+                disabled={!canSave}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Salvar
               </button>
               <Link
                 href="/issues"
-                className="text-blue-600 hover:text-blue-800 font-medium"
+                className="px-4 py-2 text-blue-600 hover:text-blue-800 font-medium"
               >
                 Cancelar
               </Link>
@@ -162,25 +228,35 @@ function SortPageContent() {
         {/* Progress */}
         <div className="text-center mb-8">
           <p className="text-lg font-medium text-gray-700">
-            Comparação {currentIndex + 1} de {totalComparisons}
+            Comparação {progress.current} de {progress.total}
+          </p>
+          <p className="text-sm text-gray-500 mt-1">
+            (~{maxComparisons} comparações no total)
           </p>
         </div>
 
-        {/* Cards Container */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-          <IssueCard
-            issue={currentPair[0]}
-            onSelect={() => handleChoice('left')}
-            side="left"
-            jiraDomain={jiraDomain}
-          />
-          <IssueCard
-            issue={currentPair[1]}
-            onSelect={() => handleChoice('right')}
-            side="right"
-            jiraDomain={jiraDomain}
-          />
-        </div>
+        {/* Loading or Cards */}
+        {currentPair ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            <IssueCard
+              issue={currentPair[0]}
+              onSelect={() => handleChoice('left')}
+              side="left"
+              jiraDomain={jiraDomain}
+            />
+            <IssueCard
+              issue={currentPair[1]}
+              onSelect={() => handleChoice('right')}
+              side="right"
+              jiraDomain={jiraDomain}
+            />
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Iniciando...</p>
+          </div>
+        )}
 
         {/* Instructions */}
         <div className="text-center mt-8 text-gray-500 text-sm">
