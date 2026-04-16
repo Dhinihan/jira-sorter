@@ -27,6 +27,11 @@ interface StoredSession {
   isComplete: boolean;
 }
 
+type SessionLoadResult = 
+  | { status: 'valid'; session: StoredSession }
+  | { status: 'expired' }
+  | { status: 'not_found' };
+
 const SESSION_EXPIRY_DAYS = 7;
 const MAX_HISTORY_SIZE = 10;
 const SESSION_ID_KEY = 'jira-sorter-current-session-id';
@@ -60,12 +65,14 @@ function getCacheKey(key1: string, key2: string): string {
   return [key1, key2].sort().join(':');
 }
 
-function loadSession(sessionId: string | null): StoredSession | null {
-  if (!sessionId || typeof window === 'undefined') return null;
+function loadSession(sessionId: string | null): SessionLoadResult {
+  if (!sessionId || typeof window === 'undefined') {
+    return { status: 'not_found' };
+  }
   
   try {
     const stored = localStorage.getItem(sessionId);
-    if (!stored) return null;
+    if (!stored) return { status: 'not_found' };
     
     const session: StoredSession = JSON.parse(stored);
     
@@ -73,13 +80,13 @@ function loadSession(sessionId: string | null): StoredSession | null {
     const daysSince = (Date.now() - session.timestamp) / (1000 * 60 * 60 * 24);
     if (daysSince > SESSION_EXPIRY_DAYS) {
       localStorage.removeItem(sessionId);
-      return null;
+      return { status: 'expired' };
     }
     
-    return session;
+    return { status: 'valid', session };
   } catch (e) {
     console.error('Failed to load session:', e);
-    return null;
+    return { status: 'not_found' };
   }
 }
 
@@ -90,31 +97,34 @@ export function useBinaryInsertionSort(
 ) {
   // Use provided sessionId, or get/create a stable one
   const effectiveSessionId = sessionId || getOrCreateSessionId(projectKey, issues.length);
-  const loadedSession = useMemo(() => loadSession(effectiveSessionId), [effectiveSessionId]);
+  const loadResult = useMemo(() => loadSession(effectiveSessionId), [effectiveSessionId]);
   
-  // Check if session is expired or mismatched
-  const isSessionValid = loadedSession && 
-    loadedSession.issues.length === issues.length && 
-    loadedSession.projectKey === projectKey;
+  // Determine if session is valid and not expired
+  const isExpired = loadResult.status === 'expired';
+  const isSessionValid = loadResult.status === 'valid' && 
+    loadResult.session.issues.length === issues.length && 
+    loadResult.session.projectKey === projectKey;
+  
+  const loadedSession = isSessionValid ? loadResult.session : null;
   
   // Initialize state from session or defaults
   const [sorted, setSorted] = useState<JiraIssue[]>(() => 
-    isSessionValid ? loadedSession!.sorted : []
+    loadedSession ? loadedSession.sorted : []
   );
   const [currentIndex, setCurrentIndex] = useState(() => 
-    isSessionValid ? loadedSession!.currentIndex : 0
+    loadedSession ? loadedSession.currentIndex : 0
   );
   const [binarySearch, setBinarySearch] = useState<BinarySearchState | null>(() => 
-    isSessionValid ? loadedSession!.binarySearch : null
+    loadedSession ? loadedSession.binarySearch : null
   );
   const [isComplete, setIsComplete] = useState(() => 
-    isSessionValid ? loadedSession!.isComplete : false
+    loadedSession ? loadedSession.isComplete : false
   );
   
   // Cache as state (not ref) to avoid render issues
   const [comparisonCache] = useState<Map<string, 'left' | 'right'>>(() => {
     const cache = new Map<string, 'left' | 'right'>();
-    if (isSessionValid && loadedSession) {
+    if (loadedSession) {
       loadedSession.comparisonCache.forEach(([key, value]) => {
         cache.set(key, value);
       });
@@ -123,7 +133,7 @@ export function useBinaryInsertionSort(
   });
   
   const [history, setHistory] = useState<HistoryState[]>(() => 
-    isSessionValid ? loadedSession!.history : []
+    loadedSession ? loadedSession.history : []
   );
   
   // Save to localStorage
@@ -325,7 +335,7 @@ export function useBinaryInsertionSort(
     canUndo: history.length > 0,
     handleUndo,
     handleRestart,
-    isExpired: loadedSession !== null && !isSessionValid,
+    isExpired,
     maxComparisons,
   };
 }
