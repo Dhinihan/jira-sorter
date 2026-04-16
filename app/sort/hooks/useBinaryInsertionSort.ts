@@ -48,9 +48,9 @@ function getOrCreateSessionId(projectKey: string, issueCount: number): string {
   // Try to get existing session ID from storage
   const existingId = localStorage.getItem(SESSION_ID_KEY);
   if (existingId) {
-    // Verify it matches current project/issues
-    const match = existingId.match(new RegExp(`jira-sorter-${projectKey}-${issueCount}-`));
-    if (match) {
+    // Verify it matches current project/issues using string prefix check (no regex)
+    const expectedPrefix = `jira-sorter-${projectKey}-${issueCount}-`;
+    if (existingId.startsWith(expectedPrefix)) {
       return existingId;
     }
   }
@@ -91,10 +91,37 @@ function loadSession(sessionId: string | null): SessionLoadResult {
 }
 
 export function useBinaryInsertionSort(
-  issues: JiraIssue[],
-  projectKey: string,
+  issuesInput: JiraIssue[],
+  projectKeyInput: string,
   sessionId?: string | null
 ) {
+  // Input validation (use local variables to avoid mutating props)
+  const issues = Array.isArray(issuesInput) ? issuesInput : [];
+  if (!Array.isArray(issuesInput)) {
+    console.warn('useBinaryInsertionSort: issues must be an array');
+  }
+  
+  const projectKey = projectKeyInput && typeof projectKeyInput === 'string' && projectKeyInput.trim() !== '' 
+    ? projectKeyInput 
+    : 'unknown';
+  if (!projectKeyInput || typeof projectKeyInput !== 'string' || projectKeyInput.trim() === '') {
+    console.warn('useBinaryInsertionSort: projectKey must be a non-empty string');
+  }
+  
+  // Check for duplicate issue keys
+  const keySet = new Set<string>();
+  const duplicates: string[] = [];
+  issues.forEach(issue => {
+    if (keySet.has(issue.key)) {
+      duplicates.push(issue.key);
+    } else {
+      keySet.add(issue.key);
+    }
+  });
+  if (duplicates.length > 0) {
+    console.warn('useBinaryInsertionSort: duplicate issue keys found:', duplicates);
+  }
+  
   // Use provided sessionId, or get/create a stable one
   const effectiveSessionId = sessionId || getOrCreateSessionId(projectKey, issues.length);
   const loadResult = useMemo(() => loadSession(effectiveSessionId), [effectiveSessionId]);
@@ -120,8 +147,8 @@ export function useBinaryInsertionSort(
     loadedSession ? loadedSession.isComplete : false
   );
   
-  // Cache as state (not ref) to avoid render issues
-  const [comparisonCache] = useState<Map<string, 'left' | 'right'>>(() => {
+  // Cache as state (immutable updates)
+  const [comparisonCache, setComparisonCache] = useState<Map<string, 'left' | 'right'>>(() => {
     const cache = new Map<string, 'left' | 'right'>();
     if (loadedSession) {
       loadedSession.comparisonCache.forEach(([key, value]) => {
@@ -188,42 +215,21 @@ export function useBinaryInsertionSort(
       return;
     }
     
-    // Check cache first
-    for (let i = 0; i < sorted.length; i++) {
-      const cacheKey = getCacheKey(issue.key, sorted[i].key);
-      const cached = comparisonCache.get(cacheKey);
-      if (cached) {
-        // Use cached result to determine position
-        if (cached === 'left') {
-          // Current issue is MORE important (comes before)
-          if (i === 0) {
-            setSorted(prev => [issue, ...prev]);
-            const nextIndex = currentIndex + 1;
-            setCurrentIndex(nextIndex);
-            if (nextIndex >= issues.length) {
-              setIsComplete(true);
-            }
-            return;
-          }
-        } else {
-          // Current issue is LESS important (comes after)
-          if (i === sorted.length - 1) {
-            setSorted(prev => [...prev, issue]);
-            const nextIndex = currentIndex + 1;
-            setCurrentIndex(nextIndex);
-            if (nextIndex >= issues.length) {
-              setIsComplete(true);
-            }
-            return;
-          }
-        }
-      }
-    }
-    
     // Start fresh binary search
     const mid = Math.floor(sorted.length / 2);
     setBinarySearch({ low: 0, high: sorted.length - 1, mid });
-  }, [sorted, comparisonCache, currentIndex, issues.length]);
+  }, [sorted, issues.length]);
+  
+  // Auto-start binary search when needed (moved from render to useEffect)
+  useEffect(() => {
+    if (isComplete || currentIndex >= issues.length || binarySearch) return;
+    
+    const timer = setTimeout(() => {
+      startBinarySearch(issues[currentIndex]);
+    }, 0);
+    
+    return () => clearTimeout(timer);
+  }, [isComplete, currentIndex, issues, binarySearch, startBinarySearch]);
   
   // Handle user choice
   const handleChoice = useCallback((choice: 'left' | 'right') => {
@@ -238,9 +244,13 @@ export function useBinaryInsertionSort(
       return newHistory.slice(-MAX_HISTORY_SIZE);
     });
     
-    // Cache this comparison
+    // Cache this comparison (immutable update)
     const cacheKey = getCacheKey(currentIssue.key, comparedIssue.key);
-    comparisonCache.set(cacheKey, choice);
+    setComparisonCache(prev => {
+      const newCache = new Map(prev);
+      newCache.set(cacheKey, choice);
+      return newCache;
+    });
     
     const { low, high, mid } = binarySearch;
     
@@ -289,7 +299,7 @@ export function useBinaryInsertionSort(
         });
       }
     }
-  }, [binarySearch, currentIndex, issues, sorted, comparisonCache]);
+  }, [binarySearch, currentIndex, issues, sorted]);
   
   // Undo last choice
   const handleUndo = useCallback(() => {
@@ -310,30 +320,18 @@ export function useBinaryInsertionSort(
     setBinarySearch(null);
     setHistory([]);
     setIsComplete(false);
-    comparisonCache.clear();
+    setComparisonCache(new Map());
     if (typeof window !== 'undefined') {
       localStorage.removeItem(effectiveSessionId);
       localStorage.removeItem(SESSION_ID_KEY);
     }
-  }, [effectiveSessionId, comparisonCache]);
+  }, [effectiveSessionId]);
   
-  // Compute current pair for comparison
-  const currentPair: [JiraIssue, JiraIssue] | null = (() => {
-    if (isComplete || currentIndex >= issues.length) {
-      return null;
-    }
-    
-    // Auto-start if needed (even when sorted is empty - first issue)
-    if (!binarySearch) {
-      if (!isComplete && currentIndex < issues.length) {
-        // Need to start - schedule it
-        setTimeout(() => startBinarySearch(issues[currentIndex]), 0);
-      }
-      return null;
-    }
-    
-    return [issues[currentIndex], sorted[binarySearch.mid]];
-  })();
+  // Compute current pair for comparison (pure computation, no side effects)
+  const currentPair: [JiraIssue, JiraIssue] | null = 
+    !isComplete && currentIndex < issues.length && binarySearch
+      ? [issues[currentIndex], sorted[binarySearch.mid]]
+      : null;
   
   // Compute progress
   const progress = {
