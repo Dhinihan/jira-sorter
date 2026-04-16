@@ -95,36 +95,49 @@ export function useBinaryInsertionSort(
   projectKeyInput: string,
   sessionId?: string | null
 ) {
-  // Input validation (use local variables to avoid mutating props)
-  const issues = Array.isArray(issuesInput) ? issuesInput : [];
-  if (!Array.isArray(issuesInput)) {
-    console.warn('useBinaryInsertionSort: issues must be an array');
-  }
+  // Use provided sessionId, or get/create a stable one
+  const effectiveSessionId = sessionId || getOrCreateSessionId(projectKeyInput || 'unknown', issuesInput?.length || 0);
+  const loadResult = useMemo(() => loadSession(effectiveSessionId), [effectiveSessionId]);
   
-  const projectKey = projectKeyInput && typeof projectKeyInput === 'string' && projectKeyInput.trim() !== '' 
-    ? projectKeyInput 
-    : 'unknown';
-  if (!projectKeyInput || typeof projectKeyInput !== 'string' || projectKeyInput.trim() === '') {
-    console.warn('useBinaryInsertionSort: projectKey must be a non-empty string');
-  }
+  // Hydrate issues from session if input is empty (browser reload case)
+  const hydratedIssues = (!issuesInput || issuesInput.length === 0) && loadResult.status === 'valid'
+    ? loadResult.session.issues
+    : issuesInput;
+  
+  // Input validation (use local variables to avoid mutating props)
+  const issues = useMemo(() => {
+    const arr = Array.isArray(hydratedIssues) ? hydratedIssues : [];
+    if (!Array.isArray(hydratedIssues)) {
+      console.warn('useBinaryInsertionSort: issues must be an array');
+    }
+    return arr;
+  }, [hydratedIssues]);
+  
+  const projectKey = useMemo(() => {
+    const key = projectKeyInput && typeof projectKeyInput === 'string' && projectKeyInput.trim() !== '' 
+      ? projectKeyInput 
+      : (loadResult.status === 'valid' ? loadResult.session.projectKey : 'unknown');
+    if (!projectKeyInput || typeof projectKeyInput !== 'string' || projectKeyInput.trim() === '') {
+      console.warn('useBinaryInsertionSort: projectKey must be a non-empty string');
+    }
+    return key;
+  }, [projectKeyInput, loadResult]);
   
   // Check for duplicate issue keys
-  const keySet = new Set<string>();
-  const duplicates: string[] = [];
-  issues.forEach(issue => {
-    if (keySet.has(issue.key)) {
-      duplicates.push(issue.key);
-    } else {
-      keySet.add(issue.key);
+  useMemo(() => {
+    const keySet = new Set<string>();
+    const duplicates: string[] = [];
+    issues.forEach(issue => {
+      if (keySet.has(issue.key)) {
+        duplicates.push(issue.key);
+      } else {
+        keySet.add(issue.key);
+      }
+    });
+    if (duplicates.length > 0) {
+      console.warn('useBinaryInsertionSort: duplicate issue keys found:', duplicates);
     }
-  });
-  if (duplicates.length > 0) {
-    console.warn('useBinaryInsertionSort: duplicate issue keys found:', duplicates);
-  }
-  
-  // Use provided sessionId, or get/create a stable one
-  const effectiveSessionId = sessionId || getOrCreateSessionId(projectKey, issues.length);
-  const loadResult = useMemo(() => loadSession(effectiveSessionId), [effectiveSessionId]);
+  }, [issues]);
   
   // Determine if session is valid and not expired
   const isExpired = loadResult.status === 'expired';
@@ -220,7 +233,7 @@ export function useBinaryInsertionSort(
     setBinarySearch({ low: 0, high: sorted.length - 1, mid });
   }, [sorted, issues.length]);
   
-  // Auto-start binary search when needed (moved from render to useEffect)
+  // Auto-start binary search when needed
   useEffect(() => {
     if (isComplete || currentIndex >= issues.length || binarySearch) return;
     
@@ -230,6 +243,71 @@ export function useBinaryInsertionSort(
     
     return () => clearTimeout(timer);
   }, [isComplete, currentIndex, issues, binarySearch, startBinarySearch]);
+  
+  // Process cached comparisons when binary search changes
+  useEffect(() => {
+    if (!binarySearch || currentIndex >= issues.length || isComplete) return;
+    
+    const currentIssue = issues[currentIndex];
+    const comparedIssue = sorted[binarySearch.mid];
+    const cacheKey = getCacheKey(currentIssue.key, comparedIssue.key);
+    const cachedChoice = comparisonCache.get(cacheKey);
+    
+    if (!cachedChoice) return; // Not in cache, user needs to choose
+    
+    // Schedule cache processing in next tick to avoid cascading renders
+    const timer = setTimeout(() => {
+      const { low, high, mid } = binarySearch;
+      
+      // Save state to history before changing (for undo)
+      setHistory(prev => {
+        const newHistory = [...prev, { sorted, currentIndex, binarySearch }];
+        return newHistory.slice(-MAX_HISTORY_SIZE);
+      });
+      
+      if (cachedChoice === 'left') {
+        if (low >= mid) {
+          const newSorted = [...sorted];
+          newSorted.splice(low, 0, currentIssue);
+          setSorted(newSorted);
+          setBinarySearch(null);
+          const nextIndex = currentIndex + 1;
+          setCurrentIndex(nextIndex);
+          if (nextIndex >= issues.length) {
+            setIsComplete(true);
+          }
+        } else {
+          const newHigh = mid - 1;
+          setBinarySearch({ 
+            low, 
+            high: newHigh, 
+            mid: Math.floor((low + newHigh) / 2) 
+          });
+        }
+      } else {
+        if (high <= mid) {
+          const newSorted = [...sorted];
+          newSorted.splice(high + 1, 0, currentIssue);
+          setSorted(newSorted);
+          setBinarySearch(null);
+          const nextIndex = currentIndex + 1;
+          setCurrentIndex(nextIndex);
+          if (nextIndex >= issues.length) {
+            setIsComplete(true);
+          }
+        } else {
+          const newLow = mid + 1;
+          setBinarySearch({ 
+            low: newLow, 
+            high, 
+            mid: Math.floor((newLow + high) / 2) 
+          });
+        }
+      }
+    }, 0);
+    
+    return () => clearTimeout(timer);
+  }, [binarySearch, currentIndex, issues, sorted, comparisonCache, isComplete]);
   
   // Handle user choice
   const handleChoice = useCallback((choice: 'left' | 'right') => {
