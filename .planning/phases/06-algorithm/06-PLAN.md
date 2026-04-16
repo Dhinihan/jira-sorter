@@ -18,7 +18,7 @@ This plan implements the core sorting algorithm (Binary Insertion Sort) with:
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │  useBinaryInsertionSort Hook                                │
 │  ┌─────────────────────────────────────────────────────────┐│
