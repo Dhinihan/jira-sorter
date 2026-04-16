@@ -29,9 +29,31 @@ interface StoredSession {
 
 const SESSION_EXPIRY_DAYS = 7;
 const MAX_HISTORY_SIZE = 10;
+const SESSION_ID_KEY = 'jira-sorter-current-session-id';
 
 function generateSessionId(projectKey: string, issueCount: number): string {
   return `jira-sorter-${projectKey}-${issueCount}-${Date.now()}`;
+}
+
+function getOrCreateSessionId(projectKey: string, issueCount: number): string {
+  if (typeof window === 'undefined') {
+    return generateSessionId(projectKey, issueCount);
+  }
+  
+  // Try to get existing session ID from storage
+  const existingId = localStorage.getItem(SESSION_ID_KEY);
+  if (existingId) {
+    // Verify it matches current project/issues
+    const match = existingId.match(new RegExp(`jira-sorter-${projectKey}-${issueCount}-`));
+    if (match) {
+      return existingId;
+    }
+  }
+  
+  // Generate new ID and persist it
+  const newId = generateSessionId(projectKey, issueCount);
+  localStorage.setItem(SESSION_ID_KEY, newId);
+  return newId;
 }
 
 function getCacheKey(key1: string, key2: string): string {
@@ -66,8 +88,9 @@ export function useBinaryInsertionSort(
   projectKey: string,
   sessionId?: string | null
 ) {
-  const effectiveSessionId = sessionId || generateSessionId(projectKey, issues.length);
-  const loadedSession = useMemo(() => loadSession(sessionId ?? null), [sessionId]);
+  // Use provided sessionId, or get/create a stable one
+  const effectiveSessionId = sessionId || getOrCreateSessionId(projectKey, issues.length);
+  const loadedSession = useMemo(() => loadSession(effectiveSessionId), [effectiveSessionId]);
   
   // Check if session is expired or mismatched
   const isSessionValid = loadedSession && 
@@ -264,6 +287,7 @@ export function useBinaryInsertionSort(
     comparisonCache.clear();
     if (typeof window !== 'undefined') {
       localStorage.removeItem(effectiveSessionId);
+      localStorage.removeItem(SESSION_ID_KEY);
     }
   }, [effectiveSessionId, comparisonCache]);
   
