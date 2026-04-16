@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { JiraIssue } from '@/app/actions/jira';
 
 interface BinarySearchState {
@@ -102,7 +102,6 @@ export function useBinaryInsertionSort(
   // Determine if session is valid and not expired
   const isExpired = loadResult.status === 'expired';
   const isSessionValid = loadResult.status === 'valid' && 
-    loadResult.session.issues.length === issues.length && 
     loadResult.session.projectKey === projectKey;
   
   const loadedSession = isSessionValid ? loadResult.session : null;
@@ -157,6 +156,23 @@ export function useBinaryInsertionSort(
       console.error('Failed to save session:', e);
     }
   }, [effectiveSessionId, projectKey, issues, sorted, currentIndex, binarySearch, comparisonCache, history, isComplete]);
+  
+  // Auto-save to localStorage whenever state changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      saveToStorage();
+    }
+  }, [saveToStorage]);
+  
+  // Save on page unload
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      saveToStorage();
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [saveToStorage]);
   
   // Start binary search for current issue
   const startBinarySearch = useCallback((issue: JiraIssue) => {
@@ -303,14 +319,19 @@ export function useBinaryInsertionSort(
   
   // Compute current pair for comparison
   const currentPair: [JiraIssue, JiraIssue] | null = (() => {
-    if (isComplete || currentIndex >= issues.length || !binarySearch) {
-      // Auto-start if needed
-      if (!isComplete && currentIndex < issues.length && !binarySearch && sorted.length > 0) {
+    if (isComplete || currentIndex >= issues.length) {
+      return null;
+    }
+    
+    // Auto-start if needed (even when sorted is empty - first issue)
+    if (!binarySearch) {
+      if (!isComplete && currentIndex < issues.length) {
         // Need to start - schedule it
         setTimeout(() => startBinarySearch(issues[currentIndex]), 0);
       }
       return null;
     }
+    
     return [issues[currentIndex], sorted[binarySearch.mid]];
   })();
   
