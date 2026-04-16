@@ -67,7 +67,7 @@ export function useBinaryInsertionSort(
   sessionId?: string | null
 ) {
   const effectiveSessionId = sessionId || generateSessionId(projectKey, issues.length);
-  const loadedSession = useMemo(() => loadSession(sessionId), [sessionId]);
+  const loadedSession = useMemo(() => loadSession(sessionId ?? null), [sessionId]);
   
   // Check if session is expired or mismatched
   const isSessionValid = loadedSession && 
