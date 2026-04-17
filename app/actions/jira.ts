@@ -4,7 +4,7 @@ import { getJiraCredentials, encodeBasicAuth } from "@/lib/cookies";
 import { cache } from "react";
 
 // Constante para o campo de link de épico (evita hardcoding)
-const EPIC_LINK_FIELD = process.env.NEXT_PUBLIC_JIRA_EPIC_FIELD || "customfield_10014";
+// Note: Epic info comes from the "parent" field in Jira's new API (not customfield_10014)
 
 // Helper para escapar valores JQL (previne injeção)
 function escapeJqlValue(value: string): string {
@@ -394,15 +394,15 @@ export async function searchIssues(
 
     // Adiciona filtro de épico se especificado
     if (epicKey === "none") {
-      jql += ` AND "Epic Link" is EMPTY`;
+      jql += ` AND parent is EMPTY`;
     } else if (epicKey) {
-      jql += ` AND "Epic Link" = ${escapeJqlValue(epicKey)}`;
+      jql += ` AND parent = ${escapeJqlValue(epicKey)}`;
     }
 
     const response = await fetch(
       `https://${credentials.domain}.atlassian.net/rest/api/3/search/jql?jql=${encodeURIComponent(
         jql
-      )}&maxResults=${maxResults}&startAt=${startAt}&fields=id,key,summary,status,assignee,${EPIC_LINK_FIELD}`,
+      )}&maxResults=${maxResults}&startAt=${startAt}&fields=id,key,summary,status,assignee,parent`,
       {
         method: "GET",
         headers: {
@@ -437,16 +437,33 @@ export async function searchIssues(
     const searchData = await response.json();
 
     const issues: JiraIssue[] =
-      searchData.issues?.map((issue: { id: string; key: string; fields: { summary: string; status?: { name?: string }; assignee?: { displayName?: string } } }) => ({
+      searchData.issues?.map((issue: { 
+        id: string; 
+        key: string; 
+        fields: { 
+          summary: string; 
+          status?: { name?: string }; 
+          assignee?: { displayName?: string };
+          parent?: { 
+            key: string; 
+            fields?: { 
+              summary?: string;
+              issuetype?: { name?: string };
+            };
+          };
+        };
+      }) => ({
         id: issue.id,
         key: issue.key,
         summary: issue.fields.summary,
         status: issue.fields.status?.name || "Unknown",
         assignee: issue.fields.assignee?.displayName || null,
-        epicKey: issue.fields[EPIC_LINK_FIELD as keyof typeof issue.fields] as string | undefined,
+        epicKey: issue.fields.parent?.key,
+        epicName: issue.fields.parent?.fields?.summary,
       })) || [];
 
-    const total = searchData.total || 0;
+    // Use total from API or fall back to issues length (API /search/jql doesn't always return total)
+    const total = searchData.total ?? issues.length;
     const totalPages = Math.ceil(total / maxResults);
 
     return {

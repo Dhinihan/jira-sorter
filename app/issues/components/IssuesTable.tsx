@@ -25,7 +25,7 @@ export function IssuesTable({ projectKey, epicKey, page, jiraDomain }: IssuesTab
     // Generate unique payload ID and store in sessionStorage
     const payloadId = `sort-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     sessionStorage.setItem(payloadId, JSON.stringify(issues));
-    router.push(`/sort?payloadId=${payloadId}&domain=${jiraDomain}`);
+    router.push(`/sort?payloadId=${payloadId}&domain=${jiraDomain}&project=${projectKey}`);
   };
 
   useEffect(() => {

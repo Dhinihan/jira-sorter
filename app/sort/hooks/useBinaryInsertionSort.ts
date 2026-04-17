@@ -1,0 +1,487 @@
+'use client';
+
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { JiraIssue } from '@/app/actions/jira';
+
+interface BinarySearchState {
+  low: number;
+  high: number;
+  mid: number;
+}
+
+interface HistoryState {
+  sorted: JiraIssue[];
+  currentIndex: number;
+  binarySearch: BinarySearchState | null;
+}
+
+interface StoredSession {
+  projectKey: string;
+  issues: JiraIssue[];
+  sorted: JiraIssue[];
+  currentIndex: number;
+  binarySearch: BinarySearchState | null;
+  comparisonCache: Array<[string, 'left' | 'right']>;
+  history: HistoryState[];
+  timestamp: number;
+  isComplete: boolean;
+}
+
+type SessionLoadResult = 
+  | { status: 'valid'; session: StoredSession }
+  | { status: 'expired' }
+  | { status: 'not_found' };
+
+const SESSION_EXPIRY_DAYS = 7;
+const MAX_HISTORY_SIZE = 10;
+const SESSION_ID_KEY = 'jira-sorter-current-session-id';
+
+function generateIssuesHash(issues: JiraIssue[]): string {
+  // Create a hash from issue keys to uniquely identify this issue set
+  const keysStr = issues.map(i => i.key).sort().join(',');
+  let hash = 0;
+  for (let i = 0; i < keysStr.length; i++) {
+    const char = keysStr.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash).toString(36).substring(0, 8);
+}
+
+function generateSessionId(projectKey: string, issues: JiraIssue[]): string {
+  const issuesHash = generateIssuesHash(issues);
+  return `jira-sorter-${projectKey}-${issuesHash}-${Date.now()}`;
+}
+
+function getOrCreateSessionId(projectKey: string, issues: JiraIssue[]): string {
+  if (typeof window === 'undefined') {
+    return generateSessionId(projectKey, issues);
+  }
+  
+  // Try to get existing session ID from storage
+  const existingId = localStorage.getItem(SESSION_ID_KEY);
+  if (existingId) {
+    // Verify it matches current project and issue set
+    const issuesHash = generateIssuesHash(issues);
+    const expectedPrefix = `jira-sorter-${projectKey}-${issuesHash}-`;
+    if (existingId.startsWith(expectedPrefix)) {
+      return existingId;
+    }
+  }
+  
+  // Generate new ID and persist it
+  const newId = generateSessionId(projectKey, issues);
+  localStorage.setItem(SESSION_ID_KEY, newId);
+  return newId;
+}
+
+function getCacheKey(key1: string, key2: string): string {
+  return [key1, key2].sort().join(':');
+}
+
+function loadSession(sessionId: string | null): SessionLoadResult {
+  if (!sessionId || typeof window === 'undefined') {
+    return { status: 'not_found' };
+  }
+  
+  try {
+    const stored = localStorage.getItem(sessionId);
+    if (!stored) return { status: 'not_found' };
+    
+    const session: StoredSession = JSON.parse(stored);
+    
+    // Check expiration
+    const daysSince = (Date.now() - session.timestamp) / (1000 * 60 * 60 * 24);
+    if (daysSince > SESSION_EXPIRY_DAYS) {
+      localStorage.removeItem(sessionId);
+      return { status: 'expired' };
+    }
+    
+    return { status: 'valid', session };
+  } catch (e) {
+    console.error('Failed to load session:', e);
+    return { status: 'not_found' };
+  }
+}
+
+export function useBinaryInsertionSort(
+  issuesInput: JiraIssue[],
+  projectKeyInput: string,
+  sessionId?: string | null
+) {
+  // Determine effective issues and session ID based on issue set
+  // Different epic = different issue set = different session
+  const effectiveSessionId = useMemo(() => {
+    if (sessionId) return sessionId;
+    
+    // Try to load session first to get issues for comparison
+    const tempLoadResult = loadSession(sessionId ?? null);
+    const tempIssues = (!issuesInput || issuesInput.length === 0) && tempLoadResult.status === 'valid'
+      ? tempLoadResult.session.issues
+      : (Array.isArray(issuesInput) ? issuesInput : []);
+    
+    return getOrCreateSessionId(projectKeyInput || 'unknown', tempIssues);
+  }, [sessionId, projectKeyInput, issuesInput]);
+  
+  const loadResult = useMemo(() => loadSession(effectiveSessionId), [effectiveSessionId]);
+  
+  // Final hydrated issues (may come from session after reload)
+  const issues = useMemo(() => {
+    const hydrated = (!issuesInput || issuesInput.length === 0) && loadResult.status === 'valid'
+      ? loadResult.session.issues
+      : (Array.isArray(issuesInput) ? issuesInput : []);
+    
+    if (!Array.isArray(hydrated)) {
+      console.warn('useBinaryInsertionSort: issues must be an array');
+      return [];
+    }
+    return hydrated;
+  }, [issuesInput, loadResult]);
+  
+  const projectKey = useMemo(() => {
+    const key = projectKeyInput && typeof projectKeyInput === 'string' && projectKeyInput.trim() !== '' 
+      ? projectKeyInput 
+      : (loadResult.status === 'valid' ? loadResult.session.projectKey : 'unknown');
+    if (!projectKeyInput || typeof projectKeyInput !== 'string' || projectKeyInput.trim() === '') {
+      console.warn('useBinaryInsertionSort: projectKey must be a non-empty string');
+    }
+    return key;
+  }, [projectKeyInput, loadResult]);
+  
+  // Check for duplicate issue keys (side effect in useEffect)
+  useEffect(() => {
+    const keySet = new Set<string>();
+    const duplicates: string[] = [];
+    issues.forEach(issue => {
+      if (keySet.has(issue.key)) {
+        duplicates.push(issue.key);
+      } else {
+        keySet.add(issue.key);
+      }
+    });
+    if (duplicates.length > 0) {
+      console.warn('useBinaryInsertionSort: duplicate issue keys found:', duplicates);
+    }
+  }, [issues]);
+  
+  // Determine if session is valid and not expired
+  const isExpired = loadResult.status === 'expired';
+  const isSessionValid = loadResult.status === 'valid' && 
+    loadResult.session.projectKey === projectKey;
+  
+  const loadedSession = isSessionValid ? loadResult.session : null;
+  
+  // Initialize state from session or defaults
+  const [sorted, setSorted] = useState<JiraIssue[]>(() => 
+    loadedSession ? loadedSession.sorted : []
+  );
+  const [currentIndex, setCurrentIndex] = useState(() => 
+    loadedSession ? loadedSession.currentIndex : 0
+  );
+  const [binarySearch, setBinarySearch] = useState<BinarySearchState | null>(() => 
+    loadedSession ? loadedSession.binarySearch : null
+  );
+  const [isComplete, setIsComplete] = useState(() => 
+    loadedSession ? loadedSession.isComplete : false
+  );
+  
+  // Cache as state (immutable updates)
+  const [comparisonCache, setComparisonCache] = useState<Map<string, 'left' | 'right'>>(() => {
+    const cache = new Map<string, 'left' | 'right'>();
+    if (loadedSession) {
+      loadedSession.comparisonCache.forEach(([key, value]) => {
+        cache.set(key, value);
+      });
+    }
+    return cache;
+  });
+  
+  const [history, setHistory] = useState<HistoryState[]>(() => 
+    loadedSession ? loadedSession.history : []
+  );
+  
+  // State to track if we just undid (to prevent cache from re-processing immediately)
+  const [justUndid, setJustUndid] = useState(false);
+  
+  // Save to localStorage
+  const saveToStorage = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    
+    try {
+      const session: StoredSession = {
+        projectKey,
+        issues,
+        sorted,
+        currentIndex,
+        binarySearch,
+        comparisonCache: Array.from(comparisonCache.entries()),
+        history,
+        timestamp: Date.now(),
+        isComplete,
+      };
+      localStorage.setItem(effectiveSessionId, JSON.stringify(session));
+    } catch (e) {
+      console.error('Failed to save session:', e);
+    }
+  }, [effectiveSessionId, projectKey, issues, sorted, currentIndex, binarySearch, comparisonCache, history, isComplete]);
+  
+  // Auto-save to localStorage whenever state changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      saveToStorage();
+    }
+  }, [saveToStorage]);
+  
+  // Save on page unload
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      saveToStorage();
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [saveToStorage]);
+  
+  // Start binary search for current issue
+  const startBinarySearch = useCallback((issue: JiraIssue) => {
+    if (sorted.length === 0) {
+      // First issue goes directly
+      const newSorted = [issue];
+      setSorted(newSorted);
+      const nextIndex = 1;
+      setCurrentIndex(nextIndex);
+      if (nextIndex >= issues.length) {
+        setIsComplete(true);
+      }
+      return;
+    }
+    
+    // Start fresh binary search
+    const mid = Math.floor(sorted.length / 2);
+    setBinarySearch({ low: 0, high: sorted.length - 1, mid });
+  }, [sorted, issues.length]);
+  
+  // Auto-start binary search when needed
+  useEffect(() => {
+    if (isComplete || currentIndex >= issues.length || binarySearch) return;
+    
+    const timer = setTimeout(() => {
+      startBinarySearch(issues[currentIndex]);
+    }, 0);
+    
+    return () => clearTimeout(timer);
+  }, [isComplete, currentIndex, issues, binarySearch, startBinarySearch]);
+  
+  // Process cached comparisons when binary search changes
+  useEffect(() => {
+    if (!binarySearch || currentIndex >= issues.length || isComplete || justUndid) return;
+    
+    const currentIssue = issues[currentIndex];
+    const comparedIssue = sorted[binarySearch.mid];
+    const cacheKey = getCacheKey(currentIssue.key, comparedIssue.key);
+    const cachedChoice = comparisonCache.get(cacheKey);
+    
+    if (!cachedChoice) return; // Not in cache, user needs to choose
+    
+    // Schedule cache processing in next tick to avoid cascading renders
+    const timer = setTimeout(() => {
+      const { low, high, mid } = binarySearch;
+      
+      // Save state to history before changing (for undo)
+      setHistory(prev => {
+        const newHistory = [...prev, { sorted, currentIndex, binarySearch }];
+        return newHistory.slice(-MAX_HISTORY_SIZE);
+      });
+      
+      if (cachedChoice === 'left') {
+        if (low >= mid) {
+          const newSorted = [...sorted];
+          newSorted.splice(low, 0, currentIssue);
+          setSorted(newSorted);
+          setBinarySearch(null);
+          const nextIndex = currentIndex + 1;
+          setCurrentIndex(nextIndex);
+          if (nextIndex >= issues.length) {
+            setIsComplete(true);
+          }
+        } else {
+          const newHigh = mid - 1;
+          setBinarySearch({ 
+            low, 
+            high: newHigh, 
+            mid: Math.floor((low + newHigh) / 2) 
+          });
+        }
+      } else {
+        if (high <= mid) {
+          const newSorted = [...sorted];
+          newSorted.splice(high + 1, 0, currentIssue);
+          setSorted(newSorted);
+          setBinarySearch(null);
+          const nextIndex = currentIndex + 1;
+          setCurrentIndex(nextIndex);
+          if (nextIndex >= issues.length) {
+            setIsComplete(true);
+          }
+        } else {
+          const newLow = mid + 1;
+          setBinarySearch({ 
+            low: newLow, 
+            high, 
+            mid: Math.floor((newLow + high) / 2) 
+          });
+        }
+      }
+    }, 0);
+    
+    return () => clearTimeout(timer);
+  }, [binarySearch, currentIndex, issues, sorted, comparisonCache, isComplete, justUndid]);
+  
+  // Handle user choice
+  const handleChoice = useCallback((choice: 'left' | 'right') => {
+    if (!binarySearch || currentIndex >= issues.length) return;
+    
+    const currentIssue = issues[currentIndex];
+    const comparedIssue = sorted[binarySearch.mid];
+    
+    // Save state to history before changing (for undo)
+    setHistory(prev => {
+      const newHistory = [...prev, { sorted, currentIndex, binarySearch }];
+      return newHistory.slice(-MAX_HISTORY_SIZE);
+    });
+    
+    // Cache this comparison (immutable update)
+    const cacheKey = getCacheKey(currentIssue.key, comparedIssue.key);
+    setComparisonCache(prev => {
+      const newCache = new Map(prev);
+      newCache.set(cacheKey, choice);
+      return newCache;
+    });
+    
+    const { low, high, mid } = binarySearch;
+    
+    if (choice === 'left') {
+      // Current issue is MORE important (comes before comparedIssue)
+      if (low >= mid) {
+        // Found position: insert at low
+        const newSorted = [...sorted];
+        newSorted.splice(low, 0, currentIssue);
+        setSorted(newSorted);
+        setBinarySearch(null);
+        const nextIndex = currentIndex + 1;
+        setCurrentIndex(nextIndex);
+        if (nextIndex >= issues.length) {
+          setIsComplete(true);
+        }
+      } else {
+        // Continue search in left half
+        const newHigh = mid - 1;
+        setBinarySearch({ 
+          low, 
+          high: newHigh, 
+          mid: Math.floor((low + newHigh) / 2) 
+        });
+      }
+    } else {
+      // Current issue is LESS important (comes after comparedIssue)
+      if (high <= mid) {
+        // Found position: insert at high + 1
+        const newSorted = [...sorted];
+        newSorted.splice(high + 1, 0, currentIssue);
+        setSorted(newSorted);
+        setBinarySearch(null);
+        const nextIndex = currentIndex + 1;
+        setCurrentIndex(nextIndex);
+        if (nextIndex >= issues.length) {
+          setIsComplete(true);
+        }
+      } else {
+        // Continue search in right half
+        const newLow = mid + 1;
+        setBinarySearch({ 
+          low: newLow, 
+          high, 
+          mid: Math.floor((newLow + high) / 2) 
+        });
+      }
+    }
+  }, [binarySearch, currentIndex, issues, sorted]);
+  
+  // Undo last choice
+  const handleUndo = useCallback(() => {
+    if (history.length === 0) return;
+    
+    const lastState = history[history.length - 1];
+    
+    // Clear the comparison cache for the undone state to prevent re-processing
+    const currentIssue = issues[lastState.currentIndex];
+    if (lastState.binarySearch && currentIssue) {
+      const comparedIssue = lastState.sorted[lastState.binarySearch.mid];
+      if (comparedIssue) {
+        const cacheKey = getCacheKey(currentIssue.key, comparedIssue.key);
+        setComparisonCache(prev => {
+          const newCache = new Map(prev);
+          newCache.delete(cacheKey);
+          return newCache;
+        });
+      }
+    }
+    
+    setSorted(lastState.sorted);
+    setCurrentIndex(lastState.currentIndex);
+    setBinarySearch(lastState.binarySearch);
+    setHistory(prev => prev.slice(0, -1));
+    setIsComplete(false);
+    setJustUndid(true);
+    
+    // Reset the flag after a short delay
+    setTimeout(() => {
+      setJustUndid(false);
+    }, 100);
+  }, [history, issues, setJustUndid, setComparisonCache]);
+  
+  // Restart (clear everything)
+  const handleRestart = useCallback(() => {
+    setSorted([]);
+    setCurrentIndex(0);
+    setBinarySearch(null);
+    setHistory([]);
+    setIsComplete(false);
+    setComparisonCache(new Map());
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(effectiveSessionId);
+      localStorage.removeItem(SESSION_ID_KEY);
+    }
+  }, [effectiveSessionId]);
+  
+  // Compute current pair for comparison (pure computation, no side effects)
+  const currentPair: [JiraIssue, JiraIssue] | null = 
+    !isComplete && currentIndex < issues.length && binarySearch
+      ? [issues[currentIndex], sorted[binarySearch.mid]]
+      : null;
+  
+  // Compute progress
+  const progress = {
+    current: Math.min(currentIndex + 1, issues.length),
+    total: issues.length,
+  };
+  
+  // Compute max comparisons (n log n approximation)
+  const maxComparisons = issues.length > 0 
+    ? Math.ceil(issues.length * Math.log2(issues.length))
+    : 0;
+  
+  return {
+    currentPair,
+    progress,
+    handleChoice,
+    sortedResult: isComplete ? sorted : null,
+    isComplete,
+    canSave: sorted.length > 0,
+    canUndo: history.length > 0,
+    handleUndo,
+    handleRestart,
+    isExpired,
+    maxComparisons,
+  };
+}
