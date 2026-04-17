@@ -6,7 +6,9 @@ interface ApplyProgressProps {
 }
 
 export function ApplyProgress({ current, total }: ApplyProgressProps) {
-  const percentage = total > 0 ? Math.round((current / total) * 100) : 0;
+  // Clamp percentage to 0-100 range
+  const rawPercentage = total > 0 ? Math.round((current / total) * 100) : 0;
+  const percentage = Math.max(0, Math.min(100, rawPercentage));
   
   return (
     <div className="bg-white rounded-lg shadow p-8 max-w-md mx-auto">
@@ -20,9 +22,16 @@ export function ApplyProgress({ current, total }: ApplyProgressProps) {
           <span>{percentage}%</span>
         </div>
         
-        <div className="w-full bg-gray-200 rounded-full h-3">
+        <div 
+          className="w-full bg-gray-200 rounded-full h-3"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={percentage}
+          aria-label="Progresso da aplicação de ordenação"
+        >
           <div
-            className="bg-green-600 h-3 rounded-full transition-all duration-300"
+            className="bg-green-600 h-3 rounded-full"
             style={{ width: `${percentage}%` }}
           />
         </div>
