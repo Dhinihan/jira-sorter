@@ -247,7 +247,7 @@ export function useBinaryInsertionSort(
   
   // Process cached comparisons when binary search changes
   useEffect(() => {
-    if (!binarySearch || currentIndex >= issues.length || isComplete) return;
+    if (!binarySearch || currentIndex >= issues.length || isComplete || justUndid) return;
     
     const currentIssue = issues[currentIndex];
     const comparedIssue = sorted[binarySearch.mid];
@@ -308,7 +308,7 @@ export function useBinaryInsertionSort(
     }, 0);
     
     return () => clearTimeout(timer);
-  }, [binarySearch, currentIndex, issues, sorted, comparisonCache, isComplete]);
+  }, [binarySearch, currentIndex, issues, sorted, comparisonCache, isComplete, justUndid]);
   
   // Handle user choice
   const handleChoice = useCallback((choice: 'left' | 'right') => {
@@ -380,17 +380,41 @@ export function useBinaryInsertionSort(
     }
   }, [binarySearch, currentIndex, issues, sorted]);
   
+  // State to track if we just undid (to prevent cache from re-processing immediately)
+  const [justUndid, setJustUndid] = useState(false);
+  
   // Undo last choice
   const handleUndo = useCallback(() => {
     if (history.length === 0) return;
     
     const lastState = history[history.length - 1];
+    
+    // Clear the comparison cache for the undone state to prevent re-processing
+    const currentIssue = issues[lastState.currentIndex];
+    if (lastState.binarySearch && currentIssue) {
+      const comparedIssue = lastState.sorted[lastState.binarySearch.mid];
+      if (comparedIssue) {
+        const cacheKey = getCacheKey(currentIssue.key, comparedIssue.key);
+        setComparisonCache(prev => {
+          const newCache = new Map(prev);
+          newCache.delete(cacheKey);
+          return newCache;
+        });
+      }
+    }
+    
     setSorted(lastState.sorted);
     setCurrentIndex(lastState.currentIndex);
     setBinarySearch(lastState.binarySearch);
     setHistory(prev => prev.slice(0, -1));
     setIsComplete(false);
-  }, [history]);
+    setJustUndid(true);
+    
+    // Reset the flag after a short delay
+    setTimeout(() => {
+      setJustUndid(false);
+    }, 100);
+  }, [history, issues, setJustUndid, setComparisonCache]);
   
   // Restart (clear everything)
   const handleRestart = useCallback(() => {
