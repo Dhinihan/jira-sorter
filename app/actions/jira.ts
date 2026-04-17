@@ -437,13 +437,13 @@ export async function searchIssues(
     const searchData = await response.json();
 
     const issues: JiraIssue[] =
-      searchData.issues?.map((issue: { id: string; key: string; fields: { summary: string; status?: { name?: string }; assignee?: { displayName?: string } } }) => ({
+      searchData.issues?.map((issue: { id: string; key: string; fields: { summary: string; status?: { name?: string }; assignee?: { displayName?: string }; [key: string]: unknown } }) => ({
         id: issue.id,
         key: issue.key,
         summary: issue.fields.summary,
         status: issue.fields.status?.name || "Unknown",
         assignee: issue.fields.assignee?.displayName || null,
-        epicKey: issue.fields[EPIC_LINK_FIELD as keyof typeof issue.fields] as string | undefined,
+        epicKey: issue.fields[EPIC_LINK_FIELD] as string | undefined,
       })) || [];
 
     // Use total from API or fall back to issues length (API /search/jql doesn't always return total)
