@@ -4,7 +4,7 @@ import { getJiraCredentials, encodeBasicAuth } from "@/lib/cookies";
 import { cache } from "react";
 
 // Constante para o campo de link de épico (evita hardcoding)
-const EPIC_LINK_FIELD = process.env.NEXT_PUBLIC_JIRA_EPIC_FIELD || "customfield_10014";
+// Note: Epic info comes from the "parent" field in Jira's new API (not customfield_10014)
 
 // Helper para escapar valores JQL (previne injeção)
 function escapeJqlValue(value: string): string {
@@ -394,15 +394,15 @@ export async function searchIssues(
 
     // Adiciona filtro de épico se especificado
     if (epicKey === "none") {
-      jql += ` AND "Epic Link" is EMPTY`;
+      jql += ` AND parent is EMPTY`;
     } else if (epicKey) {
-      jql += ` AND "Epic Link" = ${escapeJqlValue(epicKey)}`;
+      jql += ` AND parent = ${escapeJqlValue(epicKey)}`;
     }
 
     const response = await fetch(
       `https://${credentials.domain}.atlassian.net/rest/api/3/search/jql?jql=${encodeURIComponent(
         jql
-      )}&maxResults=${maxResults}&startAt=${startAt}&fields=id,key,summary,status,assignee,${EPIC_LINK_FIELD}`,
+      )}&maxResults=${maxResults}&startAt=${startAt}&fields=id,key,summary,status,assignee,parent`,
       {
         method: "GET",
         headers: {
@@ -437,49 +437,30 @@ export async function searchIssues(
     const searchData = await response.json();
 
     const issues: JiraIssue[] =
-      searchData.issues?.map((issue: { id: string; key: string; fields: { summary: string; status?: { name?: string }; assignee?: { displayName?: string }; [key: string]: unknown } }) => ({
+      searchData.issues?.map((issue: { 
+        id: string; 
+        key: string; 
+        fields: { 
+          summary: string; 
+          status?: { name?: string }; 
+          assignee?: { displayName?: string };
+          parent?: { 
+            key: string; 
+            fields?: { 
+              summary?: string;
+              issuetype?: { name?: string };
+            };
+          };
+        };
+      }) => ({
         id: issue.id,
         key: issue.key,
         summary: issue.fields.summary,
         status: issue.fields.status?.name || "Unknown",
         assignee: issue.fields.assignee?.displayName || null,
-        epicKey: issue.fields[EPIC_LINK_FIELD] as string | undefined,
+        epicKey: issue.fields.parent?.key,
+        epicName: issue.fields.parent?.fields?.summary,
       })) || [];
-
-    // Fetch epic names for issues with epics
-    const epicKeys = [...new Set(issues.map(i => i.epicKey).filter(Boolean))];
-    if (epicKeys.length > 0) {
-      try {
-        const epicJql = `key in (${epicKeys.map(k => escapeJqlValue(k as string)).join(',')})`;
-        const epicResponse = await fetch(
-          `https://${credentials.domain}.atlassian.net/rest/api/3/search/jql?jql=${encodeURIComponent(epicJql)}&maxResults=${epicKeys.length}&fields=id,key,summary`,
-          {
-            method: "GET",
-            headers: {
-              Authorization: `Basic ${auth}`,
-              Accept: "application/json",
-            },
-          }
-        );
-        
-        if (epicResponse.ok) {
-          const epicData = await epicResponse.json();
-          const epicMap = new Map(
-            epicData.issues?.map((epic: { key: string; fields: { summary: string } }) => [epic.key, epic.fields.summary]) || []
-          );
-          
-          // Populate epicName for each issue
-          issues.forEach(issue => {
-            if (issue.epicKey && epicMap.has(issue.epicKey)) {
-              issue.epicName = epicMap.get(issue.epicKey) as string;
-            }
-          });
-        }
-      } catch (epicError) {
-        console.error("Erro ao buscar nomes dos épicos:", epicError);
-        // Continue without epic names - not critical
-      }
-    }
 
     // Use total from API or fall back to issues length (API /search/jql doesn't always return total)
     const total = searchData.total ?? issues.length;
