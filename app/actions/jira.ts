@@ -446,7 +446,8 @@ export async function searchIssues(
         epicKey: issue.fields[EPIC_LINK_FIELD as keyof typeof issue.fields] as string | undefined,
       })) || [];
 
-    const total = searchData.total || 0;
+    // Use total from API or fall back to issues length (API /search/jql doesn't always return total)
+    const total = searchData.total ?? issues.length;
     const totalPages = Math.ceil(total / maxResults);
 
     return {
