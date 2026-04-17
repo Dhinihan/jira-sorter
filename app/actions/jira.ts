@@ -446,6 +446,41 @@ export async function searchIssues(
         epicKey: issue.fields[EPIC_LINK_FIELD] as string | undefined,
       })) || [];
 
+    // Fetch epic names for issues with epics
+    const epicKeys = [...new Set(issues.map(i => i.epicKey).filter(Boolean))];
+    if (epicKeys.length > 0) {
+      try {
+        const epicJql = `key in (${epicKeys.map(k => escapeJqlValue(k as string)).join(',')})`;
+        const epicResponse = await fetch(
+          `https://${credentials.domain}.atlassian.net/rest/api/3/search/jql?jql=${encodeURIComponent(epicJql)}&maxResults=${epicKeys.length}&fields=id,key,summary`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Basic ${auth}`,
+              Accept: "application/json",
+            },
+          }
+        );
+        
+        if (epicResponse.ok) {
+          const epicData = await epicResponse.json();
+          const epicMap = new Map(
+            epicData.issues?.map((epic: { key: string; fields: { summary: string } }) => [epic.key, epic.fields.summary]) || []
+          );
+          
+          // Populate epicName for each issue
+          issues.forEach(issue => {
+            if (issue.epicKey && epicMap.has(issue.epicKey)) {
+              issue.epicName = epicMap.get(issue.epicKey);
+            }
+          });
+        }
+      } catch (epicError) {
+        console.error("Erro ao buscar nomes dos épicos:", epicError);
+        // Continue without epic names - not critical
+      }
+    }
+
     // Use total from API or fall back to issues length (API /search/jql doesn't always return total)
     const total = searchData.total ?? issues.length;
     const totalPages = Math.ceil(total / maxResults);
