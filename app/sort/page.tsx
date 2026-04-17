@@ -8,11 +8,39 @@ import { useBinaryInsertionSort } from './hooks';
 import { JiraIssue, applyRanks, ApplyRanksResult } from '@/app/actions/jira';
 import { generateRanksForSortedIssues } from '@/lib/lexorank';
 
+/**
+ * Validate and normalize Jira domain
+ * Only allows alphanumeric and hyphen characters
+ */
+function validateJiraDomain(domain: string): string {
+  // Trim whitespace and lowercase
+  const trimmed = domain.trim().toLowerCase();
+  
+  // Remove any scheme (http://, https://) if present
+  const withoutScheme = trimmed.replace(/^https?:\/\//, '');
+  
+  // Extract subdomain before .atlassian.net if full URL was passed
+  const match = withoutScheme.match(/^([a-z0-9-]+)(\.atlassian\.net.*)?$/);
+  
+  if (match && match[1]) {
+    const subdomain = match[1];
+    // Validate: only a-z, 0-9, and hyphen allowed
+    if (/^[a-z0-9-]+$/.test(subdomain)) {
+      return subdomain;
+    }
+  }
+  
+  // Fallback to safe default if validation fails
+  return 'empresa';
+}
+
 function SortPageContent() {
   const searchParams = useSearchParams();
 
-  // Get domain and payloadId from URL params
-  const jiraDomain = searchParams.get('domain') || 'empresa';
+  // Validate and normalize jiraDomain
+  const rawDomain = searchParams.get('domain') || 'empresa';
+  const jiraDomain = validateJiraDomain(rawDomain);
+  
   const payloadId = searchParams.get('payloadId');
   const sessionId = searchParams.get('sessionId');
 
