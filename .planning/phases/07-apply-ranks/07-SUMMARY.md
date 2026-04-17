@@ -51,9 +51,15 @@
 
 ## 🎯 API de Escrita Utilizada
 
-```
-PUT /rest/api/3/issue/{issueKey}
-Body: { "fields": { "customfield_10019": "0|i007ap:rank_value" } }
+```http
+POST /rest/agile/1.0/issue/rank
+Content-Type: application/json
+
+{
+  "issues": ["PROJ-123"],
+  "rankAfterIssue": "0|i007ap:rank_value",
+  "rankCustomFieldId": 10019
+}
 ```
 
 **Rate Limiting:**
@@ -90,12 +96,13 @@ Body: { "fields": { "customfield_10019": "0|i007ap:rank_value" } }
 
 ## 🚀 Próximos Passos
 
-**Testar em produção:**
-1. Usar projeto VINI para teste inicial
-2. Ordenar 2-3 issues primeiro
-3. Verificar no backlog do Jira
-4. Validar comportamento
-5. Testar com quantidade maior
+**Testar em ambiente de teste/sandbox e rollout gradual:**
+1. Usar projeto VINI em ambiente de teste/sandbox para teste inicial
+2. Rollout gradual/staged rollout antes de produção
+3. Ordenar 2-3 issues primeiro
+4. Verificar no backlog do Jira
+5. Validar comportamento
+6. Testar com quantidade maior
 
 **Branch:** `gsd/phase-7-apply-ranks`  
 **Commits:** 5 commits  

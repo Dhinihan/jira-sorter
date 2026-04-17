@@ -38,9 +38,15 @@
 - **Per-issue write:** 20 per 2s, 100 per 30s
 
 ### Endpoint para Escrita
-```
+```http
 PUT /rest/api/3/issue/{issueKey}
-Body: { "fields": { "customfield_10019": "0|new_rank_value" } }
+Content-Type: application/json
+
+{
+  "fields": {
+    "customfield_10019": "0|new_rank_value"
+  }
+}
 ```
 
 ---
@@ -48,7 +54,7 @@ Body: { "fields": { "customfield_10019": "0|new_rank_value" } }
 ## Comportamento Esperado (Abordagem Simples)
 
 ### Cenário
-```
+```text
 Ordem inicial:  A1 → B1 → A2 → B2 → A3 → B3
 Ordem objetivo: A2 → A1 → A3 (do Épico A)
 

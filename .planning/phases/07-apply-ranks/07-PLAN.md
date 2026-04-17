@@ -10,11 +10,11 @@
 ## 🚨 API Calls de Escrita no Jira (Risco Assessment)
 
 ### **CALL 1: Atualização de Rank (MAIOR RISCO)**
-```
+```http
 PUT /rest/api/3/issue/{issueKey}
 ```
 **Headers:**
-```
+```text
 Authorization: Basic {base64(email:token)}
 Content-Type: application/json
 Accept: application/json
@@ -109,7 +109,7 @@ export function generateRankBetween(prev: string, next: string): string
 
 **Chamadas API:**
 - Executa `applyRanks()` Server Action
-- Recebe progresso via retorno incremental (streaming ou polling)
+- Recebe resultado final `ApplyRanksResult` (progresso é estimado pelo cliente)
 
 ---
 
