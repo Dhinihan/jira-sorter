@@ -6,15 +6,18 @@ const RANK_PREFIX = "0|i007ap:";
 
 /**
  * Generate initial ranks for a sorted list of issues
- * Creates evenly spaced rank values from top to bottom
+ * Creates evenly spaced rank values from top to bottom with large gaps
  */
 export function generateInitialRanks(count: number): string[] {
   if (count === 0) return [];
   if (count === 1) return [`${RANK_PREFIX}0000000000`];
   
   const ranks: string[] = [];
-  const baseValue = 0x10000000000; // Large base to create spacing
-  const step = Math.floor(baseValue / (count + 1));
+  // Use very large base to ensure sufficient spacing between ranks
+  // Minimum gap of 10000 between consecutive ranks to allow future insertions
+  const baseValue = 0x1000000000000; // Very large base
+  const minGap = 10000;
+  const step = Math.max(Math.floor(baseValue / (count + 1)), minGap);
   
   for (let i = 1; i <= count; i++) {
     const value = i * step;
@@ -47,6 +50,13 @@ export function generateRankBetween(prevRank: string | null, nextRank: string | 
   if (prevRank && nextRank) {
     const prevValue = parseRankValue(prevRank);
     const nextValue = parseRankValue(nextRank);
+    
+    // Verifica se há espaço suficiente entre os ranks
+    if (nextValue - prevValue <= 1) {
+      // Gap muito pequeno - retorna erro para reindexação
+      throw new Error(`Insufficient rank gap between ${prevRank} and ${nextRank}. Reindex required.`);
+    }
+    
     const midValue = Math.floor((prevValue + nextValue) / 2);
     return `${RANK_PREFIX}${midValue.toString(36).padStart(10, '0')}`;
   }
@@ -67,12 +77,32 @@ function parseRankValue(rank: string): number {
 /**
  * Generate ranks for a list of issues in order
  * This is the main function used by the sort page
+ * 
+ * @throws Error if rank generation fails due to insufficient gaps
  */
 export function generateRanksForSortedIssues(issueKeys: string[]): Array<{ key: string; newRank: string }> {
-  const ranks = generateInitialRanks(issueKeys.length);
-  
-  return issueKeys.map((key, index) => ({
-    key,
-    newRank: ranks[index],
-  }));
+  try {
+    const ranks = generateInitialRanks(issueKeys.length);
+    
+    return issueKeys.map((key, index) => ({
+      key,
+      newRank: ranks[index],
+    }));
+  } catch (error) {
+    // If initial generation fails, try with even larger spacing
+    console.warn("Initial rank generation failed, retrying with larger spacing:", error);
+    const ranks: string[] = [];
+    const baseValue = 0x100000000000000; // Extremely large base
+    const step = Math.floor(baseValue / (issueKeys.length + 1));
+    
+    for (let i = 1; i <= issueKeys.length; i++) {
+      const value = i * step;
+      ranks.push(`${RANK_PREFIX}${value.toString(36).padStart(10, '0')}`);
+    }
+    
+    return issueKeys.map((key, index) => ({
+      key,
+      newRank: ranks[index],
+    }));
+  }
 }
