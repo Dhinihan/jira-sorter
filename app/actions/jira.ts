@@ -516,7 +516,7 @@ export async function applyRanks(
     const applied: string[] = [];
     const failed: Array<{ key: string; error: string }> = [];
     
-    // Processa cada issue com retry e rate limiting
+    // Processa cada issue com retry, rate limiting e timeout
     for (let i = 0; i < issues.length; i++) {
       const { key, newRank } = issues[i];
       let retries = 0;
@@ -524,30 +524,40 @@ export async function applyRanks(
       let success = false;
       
       while (retries < maxRetries && !success) {
+        let timeoutId: NodeJS.Timeout | null = null;
+        
         try {
           // Delay exponencial entre chamadas (rate limiting)
-          if (i > 0) {
+          if (i > 0 || retries > 0) {
             const baseDelay = 100; // 100ms base
             const exponentialDelay = baseDelay * Math.pow(2, retries);
             await new Promise(resolve => setTimeout(resolve, exponentialDelay));
           }
           
+          // AbortController para timeout de 15s
+          const controller = new AbortController();
+          timeoutId = setTimeout(() => controller.abort(), 15000);
+          
+          // Usar API de rank do Jira Agile em vez de PUT direto no campo
           const response = await fetch(
-            `https://${credentials.domain}.atlassian.net/rest/api/3/issue/${key}`,
+            `https://${credentials.domain}.atlassian.net/rest/agile/1.0/issue/rank`,
             {
-              method: "PUT",
+              method: "POST",
               headers: {
                 Authorization: `Basic ${auth}`,
                 "Content-Type": "application/json",
                 Accept: "application/json",
               },
               body: JSON.stringify({
-                fields: {
-                  customfield_10019: newRank,
-                },
+                issues: [key],
+                rankAfterIssue: newRank, // Usa o rank gerado como referência
+                rankCustomFieldId: 10019, // ID do campo Rank (customfield_10019)
               }),
+              signal: controller.signal,
             }
           );
+          
+          if (timeoutId) clearTimeout(timeoutId);
           
           if (response.ok) {
             applied.push(key);
@@ -558,11 +568,38 @@ export async function applyRanks(
             const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 2000;
             await new Promise(resolve => setTimeout(resolve, waitTime));
             retries++;
+          } else if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+            // Erros 4xx (exceto 429) são definitivos - não faz retry
+            const errorText = await response.text();
+            failed.push({
+              key,
+              error: `HTTP ${response.status}: ${errorText}`,
+            });
+            break; // Sai do loop de retry
           } else {
+            // Erros 5xx ou outros - faz retry
             const errorText = await response.text();
             throw new Error(`HTTP ${response.status}: ${errorText}`);
           }
         } catch (error) {
+          if (timeoutId) clearTimeout(timeoutId);
+          
+          // Verifica se é erro de timeout ou erro de rede (transient)
+          const isTransientError = 
+            error instanceof Error && 
+            (error.name === "AbortError" || // Timeout
+             error.message.includes("fetch") || // Network error
+             error.message.includes("network"));
+          
+          if (!isTransientError && error instanceof Error && error.message.includes("HTTP 4")) {
+            // Erro 4xx definitivo
+            failed.push({
+              key,
+              error: error.message,
+            });
+            break; // Sai do loop de retry
+          }
+          
           retries++;
           if (retries >= maxRetries) {
             failed.push({
@@ -573,7 +610,7 @@ export async function applyRanks(
         }
       }
       
-      // Se não conseguiu após todas as tentativas, adiciona à lista de falhas
+      // Se não conseguiu após todas as tentativas e ainda não está na lista de falhas
       if (!success && !failed.find(f => f.key === key)) {
         failed.push({ key, error: "Máximo de tentativas excedido" });
       }
