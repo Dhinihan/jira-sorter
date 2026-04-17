@@ -36,28 +36,41 @@ const SESSION_EXPIRY_DAYS = 7;
 const MAX_HISTORY_SIZE = 10;
 const SESSION_ID_KEY = 'jira-sorter-current-session-id';
 
-function generateSessionId(projectKey: string, issueCount: number): string {
-  return `jira-sorter-${projectKey}-${issueCount}-${Date.now()}`;
+function generateIssuesHash(issues: JiraIssue[]): string {
+  // Create a hash from issue keys to uniquely identify this issue set
+  const keysStr = issues.map(i => i.key).sort().join(',');
+  let hash = 0;
+  for (let i = 0; i < keysStr.length; i++) {
+    const char = keysStr.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash).toString(36).substring(0, 8);
 }
 
-function getOrCreateSessionId(projectKey: string, issueCount: number): string {
+function generateSessionId(projectKey: string, issues: JiraIssue[]): string {
+  const issuesHash = generateIssuesHash(issues);
+  return `jira-sorter-${projectKey}-${issuesHash}-${Date.now()}`;
+}
+
+function getOrCreateSessionId(projectKey: string, issues: JiraIssue[]): string {
   if (typeof window === 'undefined') {
-    return generateSessionId(projectKey, issueCount);
+    return generateSessionId(projectKey, issues);
   }
   
   // Try to get existing session ID from storage
   const existingId = localStorage.getItem(SESSION_ID_KEY);
   if (existingId) {
-    // Verify it matches current project using string prefix check (no regex)
-    // Only check projectKey prefix to allow session restore even if issue count changed
-    const expectedPrefix = `jira-sorter-${projectKey}-`;
+    // Verify it matches current project and issue set
+    const issuesHash = generateIssuesHash(issues);
+    const expectedPrefix = `jira-sorter-${projectKey}-${issuesHash}-`;
     if (existingId.startsWith(expectedPrefix)) {
       return existingId;
     }
   }
   
   // Generate new ID and persist it
-  const newId = generateSessionId(projectKey, issueCount);
+  const newId = generateSessionId(projectKey, issues);
   localStorage.setItem(SESSION_ID_KEY, newId);
   return newId;
 }
@@ -96,23 +109,34 @@ export function useBinaryInsertionSort(
   projectKeyInput: string,
   sessionId?: string | null
 ) {
-  // Use provided sessionId, or get/create a stable one
-  const effectiveSessionId = sessionId || getOrCreateSessionId(projectKeyInput || 'unknown', issuesInput?.length || 0);
+  // Determine effective issues and session ID based on issue set
+  // Different epic = different issue set = different session
+  const effectiveSessionId = useMemo(() => {
+    if (sessionId) return sessionId;
+    
+    // Try to load session first to get issues for comparison
+    const tempLoadResult = loadSession(sessionId ?? null);
+    const tempIssues = (!issuesInput || issuesInput.length === 0) && tempLoadResult.status === 'valid'
+      ? tempLoadResult.session.issues
+      : (Array.isArray(issuesInput) ? issuesInput : []);
+    
+    return getOrCreateSessionId(projectKeyInput || 'unknown', tempIssues);
+  }, [sessionId, projectKeyInput, issuesInput]);
+  
   const loadResult = useMemo(() => loadSession(effectiveSessionId), [effectiveSessionId]);
   
-  // Hydrate issues from session if input is empty (browser reload case)
-  const hydratedIssues = (!issuesInput || issuesInput.length === 0) && loadResult.status === 'valid'
-    ? loadResult.session.issues
-    : issuesInput;
-  
-  // Input validation (use local variables to avoid mutating props)
+  // Final hydrated issues (may come from session after reload)
   const issues = useMemo(() => {
-    const arr = Array.isArray(hydratedIssues) ? hydratedIssues : [];
-    if (!Array.isArray(hydratedIssues)) {
+    const hydrated = (!issuesInput || issuesInput.length === 0) && loadResult.status === 'valid'
+      ? loadResult.session.issues
+      : (Array.isArray(issuesInput) ? issuesInput : []);
+    
+    if (!Array.isArray(hydrated)) {
       console.warn('useBinaryInsertionSort: issues must be an array');
+      return [];
     }
-    return arr;
-  }, [hydratedIssues]);
+    return hydrated;
+  }, [issuesInput, loadResult]);
   
   const projectKey = useMemo(() => {
     const key = projectKeyInput && typeof projectKeyInput === 'string' && projectKeyInput.trim() !== '' 
