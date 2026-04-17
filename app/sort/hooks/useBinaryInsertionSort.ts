@@ -176,6 +176,9 @@ export function useBinaryInsertionSort(
     loadedSession ? loadedSession.history : []
   );
   
+  // State to track if we just undid (to prevent cache from re-processing immediately)
+  const [justUndid, setJustUndid] = useState(false);
+  
   // Save to localStorage
   const saveToStorage = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -379,9 +382,6 @@ export function useBinaryInsertionSort(
       }
     }
   }, [binarySearch, currentIndex, issues, sorted]);
-  
-  // State to track if we just undid (to prevent cache from re-processing immediately)
-  const [justUndid, setJustUndid] = useState(false);
   
   // Undo last choice
   const handleUndo = useCallback(() => {
