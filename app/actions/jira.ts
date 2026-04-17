@@ -485,3 +485,115 @@ export async function searchIssues(
     };
   }
 }
+
+// Interface para resultado de aplicação de ranks
+export interface ApplyRanksResult {
+  success: boolean;
+  applied: string[];
+  failed: Array<{ key: string; error: string }>;
+  message?: string;
+}
+
+// Server Action para aplicar ranks no Jira
+export async function applyRanks(
+  issues: Array<{ key: string; newRank: string }>,
+  _projectKey: string // eslint-disable-line @typescript-eslint/no-unused-vars
+): Promise<ApplyRanksResult> {
+  try {
+    const credentials = await getJiraCredentials();
+
+    if (!credentials) {
+      return {
+        success: false,
+        applied: [],
+        failed: issues.map(i => ({ key: i.key, error: "Credenciais não configuradas" })),
+        message: "Credenciais não configuradas",
+      };
+    }
+
+    const auth = await encodeBasicAuth(credentials.email, credentials.token);
+    
+    const applied: string[] = [];
+    const failed: Array<{ key: string; error: string }> = [];
+    
+    // Processa cada issue com retry e rate limiting
+    for (let i = 0; i < issues.length; i++) {
+      const { key, newRank } = issues[i];
+      let retries = 0;
+      const maxRetries = 3;
+      let success = false;
+      
+      while (retries < maxRetries && !success) {
+        try {
+          // Delay exponencial entre chamadas (rate limiting)
+          if (i > 0) {
+            const baseDelay = 100; // 100ms base
+            const exponentialDelay = baseDelay * Math.pow(2, retries);
+            await new Promise(resolve => setTimeout(resolve, exponentialDelay));
+          }
+          
+          const response = await fetch(
+            `https://${credentials.domain}.atlassian.net/rest/api/3/issue/${key}`,
+            {
+              method: "PUT",
+              headers: {
+                Authorization: `Basic ${auth}`,
+                "Content-Type": "application/json",
+                Accept: "application/json",
+              },
+              body: JSON.stringify({
+                fields: {
+                  customfield_10019: newRank,
+                },
+              }),
+            }
+          );
+          
+          if (response.ok) {
+            applied.push(key);
+            success = true;
+          } else if (response.status === 429) {
+            // Rate limit - espera mais e tenta novamente
+            const retryAfter = response.headers.get("Retry-After");
+            const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 2000;
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+            retries++;
+          } else {
+            const errorText = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+          }
+        } catch (error) {
+          retries++;
+          if (retries >= maxRetries) {
+            failed.push({
+              key,
+              error: error instanceof Error ? error.message : "Erro desconhecido",
+            });
+          }
+        }
+      }
+      
+      // Se não conseguiu após todas as tentativas, adiciona à lista de falhas
+      if (!success && !failed.find(f => f.key === key)) {
+        failed.push({ key, error: "Máximo de tentativas excedido" });
+      }
+    }
+    
+    return {
+      success: failed.length === 0,
+      applied,
+      failed,
+      message: failed.length === 0 
+        ? `Todos os ${applied.length} issues foram ordenados com sucesso`
+        : `${applied.length} issues ordenados, ${failed.length} falhas`,
+    };
+  } catch (error) {
+    console.error("Erro ao aplicar ranks:", error);
+    return {
+      success: false,
+      applied: [],
+      failed: issues.map(i => ({ key: i.key, error: "Erro interno" })),
+      message: error instanceof Error ? error.message : "Erro desconhecido",
+    };
+  }
+}
