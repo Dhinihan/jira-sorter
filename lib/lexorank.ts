@@ -68,11 +68,11 @@ function parseRankValue(rank: string): number {
  * Generate ranks for a list of issues in order
  * This is the main function used by the sort page
  */
-export function generateRanksForSortedIssues(issueKeys: string[]): Array<{ key: string; rank: string }> {
+export function generateRanksForSortedIssues(issueKeys: string[]): Array<{ key: string; newRank: string }> {
   const ranks = generateInitialRanks(issueKeys.length);
   
   return issueKeys.map((key, index) => ({
     key,
-    rank: ranks[index],
+    newRank: ranks[index],
   }));
 }
