@@ -67,21 +67,32 @@ function SortPageContent() {
   };
 
   const handleConfirmApply = async () => {
-    if (!sortedResult) return;
+    if (!sortedResult || isApplying) return; // Guarda contra re-entrância
     
     setShowConfirmModal(false);
     setIsApplying(true);
     setApplyProgress(0);
     
-    // Generate ranks for sorted issues
-    const issuesWithRanks = generateRanksForSortedIssues(sortedResult.map(i => i.key));
-    
-    // Apply ranks with progress tracking
-    const result = await applyRanks(issuesWithRanks, projectKey);
-    
-    setApplyProgress(sortedResult.length);
-    setApplyResult(result);
-    setIsApplying(false);
+    try {
+      // Generate ranks for sorted issues
+      const issuesWithRanks = generateRanksForSortedIssues(sortedResult.map(i => i.key));
+      
+      // Apply ranks with progress tracking
+      const result = await applyRanks(issuesWithRanks, projectKey);
+      
+      setApplyProgress(sortedResult.length);
+      setApplyResult(result);
+    } catch (error) {
+      console.error("Error applying ranks:", error);
+      setApplyResult({
+        success: false,
+        applied: [],
+        failed: sortedResult.map(i => ({ key: i.key, error: "Erro interno ao aplicar" })),
+        message: "Erro interno ao aplicar ordenação",
+      });
+    } finally {
+      setIsApplying(false);
+    }
   };
 
   const handleCancelApply = () => {
