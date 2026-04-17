@@ -471,7 +471,7 @@ export async function searchIssues(
           // Populate epicName for each issue
           issues.forEach(issue => {
             if (issue.epicKey && epicMap.has(issue.epicKey)) {
-              issue.epicName = epicMap.get(issue.epicKey);
+              issue.epicName = epicMap.get(issue.epicKey) as string;
             }
           });
         }
