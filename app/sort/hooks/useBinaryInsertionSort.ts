@@ -48,8 +48,9 @@ function getOrCreateSessionId(projectKey: string, issueCount: number): string {
   // Try to get existing session ID from storage
   const existingId = localStorage.getItem(SESSION_ID_KEY);
   if (existingId) {
-    // Verify it matches current project/issues using string prefix check (no regex)
-    const expectedPrefix = `jira-sorter-${projectKey}-${issueCount}-`;
+    // Verify it matches current project using string prefix check (no regex)
+    // Only check projectKey prefix to allow session restore even if issue count changed
+    const expectedPrefix = `jira-sorter-${projectKey}-`;
     if (existingId.startsWith(expectedPrefix)) {
       return existingId;
     }
@@ -123,8 +124,8 @@ export function useBinaryInsertionSort(
     return key;
   }, [projectKeyInput, loadResult]);
   
-  // Check for duplicate issue keys
-  useMemo(() => {
+  // Check for duplicate issue keys (side effect in useEffect)
+  useEffect(() => {
     const keySet = new Set<string>();
     const duplicates: string[] = [];
     issues.forEach(issue => {
