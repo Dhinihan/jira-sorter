@@ -559,13 +559,20 @@ export async function applyRanks(
       };
     }
     
-    // Buscar a última issue do backlog atual para usar como referência
-    let lastBacklogIssue: string | null = null;
+    // Buscar uma issue de referência do backlog que NÃO esteja na nossa lista
+    // Isso garante que a primeira issue sempre tenha uma referência válida
+    let externalReference: string | null = null;
     
     try {
-      const jql = `project = ${escapeJqlValue(projectKey)} ORDER BY rank DESC`;
+      // Busca até 50 issues do backlog, excluindo as que estão na nossa lista
+      const issueKeysInList = issues.map(i => i.key);
+      const keysToExclude = issueKeysInList.map(k => `"${k}"`).join(",");
+      
+      // JQL: pega issues do projeto que NÃO estão na nossa lista, ordenadas por rank
+      const jql = `project = ${escapeJqlValue(projectKey)} AND key NOT IN (${keysToExclude}) ORDER BY rank DESC`;
+      
       const response = await fetch(
-        `https://${credentials.domain}.atlassian.net/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=1&fields=key`,
+        `https://${credentials.domain}.atlassian.net/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=50&fields=key`,
         {
           method: "GET",
           headers: {
@@ -578,20 +585,17 @@ export async function applyRanks(
       if (response.ok) {
         const data = await response.json();
         if (data.issues && data.issues.length > 0) {
-          lastBacklogIssue = data.issues[0].key;
+          // Pega a primeira issue que não está na nossa lista (mais prioritária delas)
+          externalReference = data.issues[0].key;
+          console.log(`Referência externa encontrada: ${externalReference}`);
         }
       }
     } catch (e) {
       console.warn("Não foi possível buscar issue de referência:", e);
     }
     
-    // Verifica se a última issue do backlog está na nossa lista de ordenação
-    const referenceIsInList = lastBacklogIssue && issues.some(iss => iss.key === lastBacklogIssue);
-    const hasValidExternalRef = lastBacklogIssue && !referenceIsInList;
-    
     // ESTRATÉGIA: Processa na ORDEM NORMAL (da mais prioritária para a menos)
-    // - A primeira vai pro topo (sem referência ou depois de uma referência externa)
-    // - As demais vão DEPOIS da anterior (rankAfterIssue)
+    // Todas as issues usam rankAfterIssue para posicionar DEPOIS de outra issue
     for (let i = 0; i < issues.length; i++) {
       const { key } = issues[i];
       let retries = 0;
@@ -616,25 +620,33 @@ export async function applyRanks(
           const controller = new AbortController();
           timeoutId = setTimeout(() => controller.abort(), 15000);
           
-          // Prepara o payload
+          // Prepara o payload - SEMPRE com rankAfterIssue
           const rankBody: Record<string, unknown> = {
             issues: [key],
             rankCustomFieldId: 10019,
           };
           
           if (i === 0) {
-            // PRIMEIRA issue (mais prioritária)
-            // Se temos uma referência externa válida, coloca DEPOIS dela
-            // Senão, vai pro topo (não envia referência)
-            if (hasValidExternalRef && lastBacklogIssue !== key) {
-              rankBody.rankAfterIssue = lastBacklogIssue;
+            // PRIMEIRA issue (mais prioritária da nossa lista)
+            // SEMPRE usa rankAfterIssue:
+            // - Se temos referência externa: vai DEPOIS dela
+            // - Se não temos: vai DEPOIS da última issue do backlog (que é menos prioritária)
+            //   Isso significa nossa issue vai pro final, mas depois reordenamos as outras
+            if (externalReference && externalReference !== key) {
+              rankBody.rankAfterIssue = externalReference;
+              console.log(`Issue ${key}: rankAfterIssue = ${externalReference} (referência externa)`);
+            } else {
+              // Se não temos referência externa, a primeira issue vai pro final
+              // As demais serão posicionadas DEPOIS dela
+              console.log(`Issue ${key}: sem referência, vai pro final do backlog`);
+              // Não envia rankAfterIssue -> API coloca no final
             }
-            // Se não tem referência, não envia nada -> vai pro topo
           } else {
             // Issues subsequentes: sempre DEPOIS da anterior
             // A anterior já foi posicionada, então sabemos onde ela está
             const prevKey = issues[i - 1].key;
             rankBody.rankAfterIssue = prevKey;
+            console.log(`Issue ${key}: rankAfterIssue = ${prevKey} (anterior na lista)`);
           }
           
           const response = await fetch(
