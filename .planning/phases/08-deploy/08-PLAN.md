@@ -36,29 +36,17 @@ Build completa sem erros. Arquivos gerados em .next/
 </task>
 
 <task id="2" name="Configurar variáveis de ambiente na Vercel">
-Adicionar variáveis de ambiente no dashboard da Vercel.
-
-Variáveis necessárias:
-- JIRA_DOMAIN (ex: mandua)
-- JIRA_EMAIL
-- JIRA_TOKEN
-
-<verify>
-Variáveis configuradas no dashboard da Vercel. Deploy pode acessar credenciais.
-</verify>
+✅ **NÃO APLICÁVEL** - As credenciais do Jira são por usuário (salvas em cookie), não variáveis de ambiente globais.
 </task>
 
 <task id="3" name="Deploy na Vercel">
-Fazer deploy do projeto na Vercel.
+✅ **EM ANDAMENTO** - Deploy automático via GitHub integration já configurado.
 
-Passos:
-1. Conectar GitHub repo na Vercel
-2. Selecionar branch main (ou gsd/phase-8-deploy)
-3. Configurar build settings (Next.js)
-4. Trigger deploy
+Branch `gsd/phase-7-apply-ranks` está sendo deployado automaticamente.
+URL: https://jira-sorter-git-gsd-phase-7-apply-ranks-dhinihans-projects.vercel.app
 
 <verify>
-URL do deploy funciona (ex: jira-sorter.vercel.app). Página inicial carrega.
+URL do deploy funciona. Página inicial carrega.
 </verify>
 </task>
 
