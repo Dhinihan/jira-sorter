@@ -1,108 +1,32 @@
-// LexoRank generation utilities
-// Jira uses LexoRank for issue ordering in the backlog
-// Format: "0|i0000n:0000000000" where the last part varies
+// Rank generation utilities for Jira Agile API
+// Jira's /rest/agile/1.0/issue/rank API uses issue keys for relative positioning
 
-const RANK_PREFIX = "0|i007ap:";
-
-/**
- * Generate initial ranks for a sorted list of issues
- * Creates evenly spaced rank values from top to bottom with large gaps
- */
-export function generateInitialRanks(count: number): string[] {
-  if (count === 0) return [];
-  if (count === 1) return [`${RANK_PREFIX}0000000000`];
-  
-  const ranks: string[] = [];
-  // Use very large base to ensure sufficient spacing between ranks
-  // Minimum gap of 10000 between consecutive ranks to allow future insertions
-  const baseValue = 0x1000000000000; // Very large base
-  const minGap = 10000;
-  const step = Math.max(Math.floor(baseValue / (count + 1)), minGap);
-  
-  for (let i = 1; i <= count; i++) {
-    const value = i * step;
-    ranks.push(`${RANK_PREFIX}${value.toString(36).padStart(10, '0')}`);
-  }
-  
-  return ranks;
+export interface RankInput {
+  key: string;
+  // rankAfterKey: chave da issue que deve vir ANTES desta na ordenação
+  // null significa: colocar no topo (primeira da lista)
+  rankAfterKey: string | null;
 }
 
 /**
- * Generate a rank between two existing ranks
- * Used when inserting between two issues
- */
-export function generateRankBetween(prevRank: string | null, nextRank: string | null): string {
-  // If no previous, generate something before next
-  if (!prevRank && nextRank) {
-    const nextValue = parseRankValue(nextRank);
-    const newValue = Math.floor(nextValue / 2);
-    return `${RANK_PREFIX}${newValue.toString(36).padStart(10, '0')}`;
-  }
-  
-  // If no next, generate something after previous
-  if (prevRank && !nextRank) {
-    const prevValue = parseRankValue(prevRank);
-    const newValue = prevValue + 0x100000000; // Add spacing
-    return `${RANK_PREFIX}${newValue.toString(36).padStart(10, '0')}`;
-  }
-  
-  // If both exist, find midpoint
-  if (prevRank && nextRank) {
-    const prevValue = parseRankValue(prevRank);
-    const nextValue = parseRankValue(nextRank);
-    
-    // Verifica se há espaço suficiente entre os ranks
-    if (nextValue - prevValue <= 1) {
-      // Gap muito pequeno - retorna erro para reindexação
-      throw new Error(`Insufficient rank gap between ${prevRank} and ${nextRank}. Reindex required.`);
-    }
-    
-    const midValue = Math.floor((prevValue + nextValue) / 2);
-    return `${RANK_PREFIX}${midValue.toString(36).padStart(10, '0')}`;
-  }
-  
-  // Default (shouldn't happen in normal flow)
-  return `${RANK_PREFIX}0000000000`;
-}
-
-/**
- * Parse the numeric value from a LexoRank string
- */
-function parseRankValue(rank: string): number {
-  const match = rank.match(/:([a-z0-9]+)$/i);
-  if (!match) return 0;
-  return parseInt(match[1], 36);
-}
-
-/**
- * Generate ranks for a list of issues in order
- * This is the main function used by the sort page
+ * Generate rank inputs for a list of issues in sorted order
  * 
- * @throws Error if rank generation fails due to insufficient gaps
+ * For a sorted list [A, B, C, D, E], returns:
+ * - A: rankAfterKey = null (goes to top)
+ * - B: rankAfterKey = A (goes after A)
+ * - C: rankAfterKey = B (goes after B)
+ * - D: rankAfterKey = C (goes after C)
+ * - E: rankAfterKey = D (goes after D)
+ * 
+ * This format is used by the Jira Agile rank API (/rest/agile/1.0/issue/rank)
  */
-export function generateRanksForSortedIssues(issueKeys: string[]): Array<{ key: string; newRank: string }> {
-  try {
-    const ranks = generateInitialRanks(issueKeys.length);
-    
-    return issueKeys.map((key, index) => ({
-      key,
-      newRank: ranks[index],
-    }));
-  } catch (error) {
-    // If initial generation fails, try with even larger spacing
-    console.warn("Initial rank generation failed, retrying with larger spacing:", error);
-    const ranks: string[] = [];
-    const baseValue = 0x100000000000000; // Extremely large base
-    const step = Math.floor(baseValue / (issueKeys.length + 1));
-    
-    for (let i = 1; i <= issueKeys.length; i++) {
-      const value = i * step;
-      ranks.push(`${RANK_PREFIX}${value.toString(36).padStart(10, '0')}`);
-    }
-    
-    return issueKeys.map((key, index) => ({
-      key,
-      newRank: ranks[index],
-    }));
-  }
+export function generateRanksForSortedIssues(issueKeys: string[]): RankInput[] {
+  if (issueKeys.length === 0) return [];
+  
+  return issueKeys.map((key, index) => ({
+    key,
+    // A primeira issue vai para o topo (rankAfterKey = null)
+    // As demais vão após a issue anterior na lista
+    rankAfterKey: index === 0 ? null : issueKeys[index - 1],
+  }));
 }
