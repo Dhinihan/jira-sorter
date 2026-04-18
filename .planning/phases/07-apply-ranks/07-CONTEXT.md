@@ -29,7 +29,7 @@
 - **Field ID:** `customfield_10019`
 - **Field Name:** Rank
 - **Type:** Greenhopper LexoRank
-- **Operations:** set (via PUT /rest/api/3/issue/{key})
+- **Operations:** rank positioning (via POST /rest/agile/1.0/issue/rank)
 
 ### Rate Limits (from documentation)
 - **PUT requests:** 50/second steady-state

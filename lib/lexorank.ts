@@ -23,6 +23,16 @@ export interface RankInput {
 export function generateRanksForSortedIssues(issueKeys: string[]): RankInput[] {
   if (issueKeys.length === 0) return [];
   
+  // Fail-fast validation for empty/whitespace keys
+  if (issueKeys.some(k => !k || !k.trim())) {
+    throw new Error("Invalid issueKeys: contains empty or whitespace keys");
+  }
+  
+  // Fail-fast validation for duplicate keys
+  if (new Set(issueKeys).size !== issueKeys.length) {
+    throw new Error("Invalid issueKeys: contains duplicate keys");
+  }
+  
   return issueKeys.map((key, index) => ({
     key,
     // A primeira issue vai para o topo (rankAfterKey = null)

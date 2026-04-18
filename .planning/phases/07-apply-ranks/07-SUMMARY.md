@@ -9,7 +9,7 @@
 ## ✅ Entregáveis Implementados
 
 - [x] Server Action `applyRanks()` com retry logic e rate limiting
-- [x] Utilitários LexoRank para geração de valores de ordenação
+- [x] Utilitários para geração de referências relativas de ordenação (rankAfterKey)
 - [x] Modal de confirmação simples
 - [x] Barra de progresso durante aplicação
 - [x] Tela de resultado com estatísticas e lista de falhas
@@ -68,9 +68,9 @@ Content-Type: application/json
 - C: `rankAfterIssue: "B"` (vai após B)
 
 **Rate Limiting:**
-- 50 requests/second (steady-state)
-- Exponential backoff implementado
-- Respeita header Retry-After
+- Per-request pacing com exponential backoff
+- Respeita header `Retry-After` do Jira
+- Burst control: delay adaptativo entre chamadas
 
 **Retry:**
 - 3 tentativas por issue

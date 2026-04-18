@@ -48,7 +48,7 @@ Accept: application/json
 **Implementação:**
 ```typescript
 export async function applyRanks(
-  issues: Array<{ key: string; newRank: string }>,
+  issues: Array<{ key: string; rankAfterKey: string | null }>,
   projectKey: string
 ): Promise<{
   success: boolean;
@@ -165,7 +165,7 @@ export function generateRanksForSortedIssues(issueKeys: string[]): RankInput[]
 - [ ] Rate limiting respeitado (delay entre calls)
 - [ ] Retry implementado (3x com exponential backoff)
 - [ ] Lista de falhas exibida ao final
-- [ ] Progresso mostrado em tempo real
+- [ ] Progresso estimado pelo cliente / resultado final (sem streaming do servidor)
 - [ ] Link para backlog funciona
 
 ### API Safety
