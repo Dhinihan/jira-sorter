@@ -495,8 +495,9 @@ export interface ApplyRanksResult {
 }
 
 // Server Action para aplicar ranks no Jira
+// Cada issue deve ter: key (chave da issue) e rankAfterKey (chave da issue anterior, null se for a primeira)
 export async function applyRanks(
-  issues: Array<{ key: string; newRank: string }>,
+  issues: Array<{ key: string; rankAfterKey: string | null }>,
   _projectKey: string // eslint-disable-line @typescript-eslint/no-unused-vars
 ): Promise<ApplyRanksResult> {
   try {
@@ -518,7 +519,7 @@ export async function applyRanks(
     
     // Processa cada issue com retry, rate limiting e timeout
     for (let i = 0; i < issues.length; i++) {
-      const { key, newRank } = issues[i];
+      const { key, rankAfterKey } = issues[i];
       let retries = 0;
       const maxRetries = 3;
       let success = false;
@@ -539,6 +540,20 @@ export async function applyRanks(
           timeoutId = setTimeout(() => controller.abort(), 15000);
           
           // Usar API de rank do Jira Agile em vez de PUT direto no campo
+          // rankAfterKey é a chave da issue que deve vir ANTES da issue atual
+          // Se rankAfterKey é null, a issue vai para o topo
+          const rankBody: Record<string, unknown> = {
+            issues: [key],
+            rankCustomFieldId: 10019, // ID do campo Rank (customfield_10019)
+          };
+          
+          // Só adiciona rankAfterIssue se houver uma issue de referência
+          if (rankAfterKey) {
+            rankBody.rankAfterIssue = rankAfterKey;
+          }
+          // Se rankAfterKey é null, não enviamos rankAfterIssue nem rankBeforeIssue
+          // A API vai colocar a issue no topo do backlog
+          
           const response = await fetch(
             `https://${credentials.domain}.atlassian.net/rest/agile/1.0/issue/rank`,
             {
@@ -548,11 +563,7 @@ export async function applyRanks(
                 "Content-Type": "application/json",
                 Accept: "application/json",
               },
-              body: JSON.stringify({
-                issues: [key],
-                rankAfterIssue: newRank, // Usa o rank gerado como referência
-                rankCustomFieldId: 10019, // ID do campo Rank (customfield_10019)
-              }),
+              body: JSON.stringify(rankBody),
               signal: controller.signal,
             }
           );
