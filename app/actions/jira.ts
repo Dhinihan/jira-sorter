@@ -9,6 +9,18 @@ function escapeJqlValue(value: string): string {
   return `"${clean}"`;
 }
 
+// Interface para resposta da API de boards
+interface JiraBoardResponse {
+  id: number;
+  name: string;
+  type: string;
+  location?: {
+    projectId: number;
+    projectKey: string;
+    projectName: string;
+  };
+}
+
 export interface TestConnectionResult {
   success: boolean;
   message: string;
@@ -441,6 +453,78 @@ export interface ApplyRanksResult {
   applied: string[];
   failed: Array<{ key: string; error: string }>;
   message?: string;
+}
+
+export interface GetBoardIdResult {
+  success: boolean;
+  boardId: number | null;
+  message?: string;
+}
+
+// Server Action para buscar o board ID do projeto
+export async function getBoardIdByProject(projectKey: string): Promise<GetBoardIdResult> {
+  try {
+    const credentials = await getJiraCredentials();
+
+    if (!credentials) {
+      return {
+        success: false,
+        boardId: null,
+        message: "Credenciais não configuradas",
+      };
+    }
+
+    const auth = await encodeBasicAuth(credentials.email, credentials.token);
+
+    const response = await fetch(
+      `https://${credentials.domain}.atlassian.net/rest/agile/1.0/board?projectKeyOrId=${encodeURIComponent(projectKey)}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Basic ${auth}`,
+          Accept: "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        return {
+          success: false,
+          boardId: null,
+          message: "Token inválido ou expirado",
+        };
+      }
+      return {
+        success: false,
+        boardId: null,
+        message: `Erro na API: ${response.status}`,
+      };
+    }
+
+    const data = await response.json();
+    
+    if (data.values && data.values.length > 0) {
+      // Retorna o ID do primeiro board encontrado
+      return {
+        success: true,
+        boardId: data.values[0].id,
+      };
+    }
+
+    return {
+      success: false,
+      boardId: null,
+      message: "Nenhum board encontrado para o projeto",
+    };
+  } catch (error) {
+    console.error("Erro ao buscar board ID:", error);
+    return {
+      success: false,
+      boardId: null,
+      message: error instanceof Error ? error.message : "Erro desconhecido",
+    };
+  }
 }
 
 // Server Action para aplicar ranks no Jira

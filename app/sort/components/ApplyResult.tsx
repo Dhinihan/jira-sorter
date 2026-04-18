@@ -1,5 +1,8 @@
 "use client";
 
+import { useState, useEffect } from "react";
+import { getBoardIdByProject } from "@/app/actions/jira";
+
 interface ApplyResultProps {
   applied: number;
   failed: number;
@@ -20,12 +23,33 @@ export function ApplyResult({
   const total = applied + failed;
   const hasFailures = failed > 0;
   
+  const [boardId, setBoardId] = useState<number | null>(null);
+  const [isLoadingBoard, setIsLoadingBoard] = useState(true);
+  
+  useEffect(() => {
+    async function fetchBoardId() {
+      const result = await getBoardIdByProject(projectKey);
+      if (result.success && result.boardId) {
+        setBoardId(result.boardId);
+      }
+      setIsLoadingBoard(false);
+    }
+    
+    fetchBoardId();
+  }, [projectKey]);
+  
   // Build URL safely using URL constructor
-  // Jira Cloud backlog URL format: /jira/software/projects/{projectKey}/boards
-  const backlogUrl = new URL(
-    `/jira/software/projects/${encodeURIComponent(projectKey)}/boards`,
-    `https://${jiraDomain}.atlassian.net`
-  ).toString();
+  // Se temos boardId, usa a URL completa com backlog
+  // Senão, usa a URL genérica dos boards
+  const backlogUrl = boardId 
+    ? new URL(
+        `/jira/software/projects/${encodeURIComponent(projectKey)}/boards/${boardId}/backlog`,
+        `https://${jiraDomain}.atlassian.net`
+      ).toString()
+    : new URL(
+        `/jira/software/projects/${encodeURIComponent(projectKey)}/boards`,
+        `https://${jiraDomain}.atlassian.net`
+      ).toString();
   
   return (
     <div className="bg-white rounded-lg shadow p-8 max-w-2xl mx-auto">
@@ -82,9 +106,9 @@ export function ApplyResult({
           href={backlogUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+          className={`px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium ${isLoadingBoard ? 'opacity-70' : ''}`}
         >
-          Ver no backlog
+          {isLoadingBoard ? 'Carregando...' : 'Ver no backlog'}
         </a>
         <button
           type="button"
