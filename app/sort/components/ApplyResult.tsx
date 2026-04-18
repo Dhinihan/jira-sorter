@@ -21,8 +21,9 @@ export function ApplyResult({
   const hasFailures = failed > 0;
   
   // Build URL safely using URL constructor
+  // Jira Cloud backlog URL format: /jira/software/projects/{projectKey}/boards
   const backlogUrl = new URL(
-    `/jira/software/c/projects/${encodeURIComponent(projectKey)}/boards`,
+    `/jira/software/projects/${encodeURIComponent(projectKey)}/boards`,
     `https://${jiraDomain}.atlassian.net`
   ).toString();
   
