@@ -3,15 +3,44 @@
 import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { IssueCard } from './components';
+import { IssueCard, ConfirmApplyModal, ApplyProgress, ApplyResult } from './components';
 import { useBinaryInsertionSort } from './hooks';
-import { JiraIssue } from '@/app/actions/jira';
+import { JiraIssue, applyRanks, ApplyRanksResult } from '@/app/actions/jira';
+import { generateRanksForSortedIssues } from '@/lib/lexorank';
+
+/**
+ * Validate and normalize Jira domain
+ * Only allows alphanumeric and hyphen characters
+ */
+function validateJiraDomain(domain: string): string {
+  // Trim whitespace and lowercase
+  const trimmed = domain.trim().toLowerCase();
+  
+  // Remove any scheme (http://, https://) if present
+  const withoutScheme = trimmed.replace(/^https?:\/\//, '');
+  
+  // Extract subdomain before .atlassian.net if full URL was passed
+  const match = withoutScheme.match(/^([a-z0-9-]+)(\.atlassian\.net.*)?$/);
+  
+  if (match && match[1]) {
+    const subdomain = match[1];
+    // Validate: only a-z, 0-9, and hyphen allowed
+    if (/^[a-z0-9-]+$/.test(subdomain)) {
+      return subdomain;
+    }
+  }
+  
+  // Fallback to safe default if validation fails
+  return 'empresa';
+}
 
 function SortPageContent() {
   const searchParams = useSearchParams();
 
-  // Get domain and payloadId from URL params
-  const jiraDomain = searchParams.get('domain') || 'empresa';
+  // Validate and normalize jiraDomain
+  const rawDomain = searchParams.get('domain') || 'empresa';
+  const jiraDomain = validateJiraDomain(rawDomain);
+  
   const payloadId = searchParams.get('payloadId');
   const sessionId = searchParams.get('sessionId');
 
@@ -48,10 +77,58 @@ function SortPageContent() {
     maxComparisons,
   } = useBinaryInsertionSort(issues, projectKey, sessionId);
 
+  // States for apply ranks flow
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isApplying, setIsApplying] = useState(false);
+  const [applyProgress, setApplyProgress] = useState(0);
+  const [applyResult, setApplyResult] = useState<ApplyRanksResult | null>(null);
+
   const handleSave = () => {
     if (!canSave) return;
     // Save to localStorage (already done by hook)
     alert('Progresso salvo! Você pode fechar e voltar depois.');
+  };
+
+  const handleApplyClick = () => {
+    if (!sortedResult || sortedResult.length === 0) return;
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmApply = async () => {
+    if (!sortedResult || isApplying) return; // Guarda contra re-entrância
+    
+    setShowConfirmModal(false);
+    setIsApplying(true);
+    setApplyProgress(0);
+    
+    try {
+      // Generate ranks for sorted issues
+      const issuesWithRanks = generateRanksForSortedIssues(sortedResult.map(i => i.key));
+      
+      // Apply ranks with progress tracking
+      const result = await applyRanks(issuesWithRanks, projectKey);
+      
+      setApplyProgress(sortedResult.length);
+      setApplyResult(result);
+    } catch (error) {
+      console.error("Error applying ranks:", error);
+      setApplyResult({
+        success: false,
+        applied: [],
+        failed: sortedResult.map(i => ({ key: i.key, error: "Erro interno ao aplicar" })),
+        message: "Erro interno ao aplicar ordenação",
+      });
+    } finally {
+      setIsApplying(false);
+    }
+  };
+
+  const handleCancelApply = () => {
+    setShowConfirmModal(false);
+  };
+
+  const handleCloseResult = () => {
+    setApplyResult(null);
   };
 
   // Handle expired session
@@ -161,10 +238,10 @@ function SortPageContent() {
             {/* Actions */}
             <div className="flex flex-col sm:flex-row justify-center gap-4">
               <button
-                onClick={() => window.open(`https://${jiraDomain}.atlassian.net`, '_blank')}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                onClick={handleApplyClick}
+                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
               >
-                Ver no Jira
+                Aplicar no Jira
               </button>
               <button
                 onClick={handleRestart}
@@ -180,6 +257,39 @@ function SortPageContent() {
               </Link>
             </div>
           </div>
+          
+          {/* Confirmation Modal */}
+          {showConfirmModal && sortedResult && (
+            <ConfirmApplyModal
+              issueCount={sortedResult.length}
+              onConfirm={handleConfirmApply}
+              onCancel={handleCancelApply}
+            />
+          )}
+          
+          {/* Progress Modal */}
+          {isApplying && sortedResult && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <ApplyProgress
+                current={applyProgress}
+                total={sortedResult.length}
+              />
+            </div>
+          )}
+          
+          {/* Result Modal */}
+          {applyResult && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <ApplyResult
+                applied={applyResult.applied.length}
+                failed={applyResult.failed.length}
+                failedIssues={applyResult.failed}
+                jiraDomain={jiraDomain}
+                projectKey={projectKey}
+                onClose={handleCloseResult}
+              />
+            </div>
+          )}
         </main>
       </div>
     );
