@@ -53,9 +53,23 @@ Vá para https://jira-sorter.vercel.app/
 
 ---
 
+## 📸 Screenshots
+
+### Desktop - Tela de Ordenação
+![Tela de ordenação desktop](./docs/screenshots/desktop-sort.png)
+*Interface de comparação pairwise mostrando duas issues lado a lado*
+
+### Mobile - Fluxo Completo  
+![Tela mobile](./docs/screenshots/mobile-flow.png)
+*Interface adaptada para smartphones com cards empilhados*
+
+*Nota: Screenshots devem ser adicionados em `docs/screenshots/`*
+
+---
+
 ## 🛠️ Tecnologias
 
-- **Next.js 14** (App Router + Server Components)
+- **Next.js 16.2.3** (App Router + Server Components)
 - **TypeScript**
 - **Tailwind CSS**
 - **Jira Cloud REST API**

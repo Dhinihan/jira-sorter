@@ -40,10 +40,10 @@ Build completa sem erros. Arquivos gerados em .next/
 </task>
 
 <task id="3" name="Deploy na Vercel">
-✅ **EM ANDAMENTO** - Deploy automático via GitHub integration já configurado.
+✅ **CONCLUÍDO** - Deploy automático via GitHub integration configurado.
 
-Branch `gsd/phase-7-apply-ranks` está sendo deployado automaticamente.
-URL: https://jira-sorter-git-gsd-phase-7-apply-ranks-dhinihans-projects.vercel.app
+Branch `gsd/phase-8-deploy` deployado automaticamente.
+URL: https://jira-sorter-git-gsd-phase-8-deploy-dhinihans-projects.vercel.app
 
 <verify>
 URL do deploy funciona. Página inicial carrega.
@@ -113,10 +113,10 @@ Incluir:
 
 Goal: Deploy de produção na Vercel e testes finais validados
 
-- [ ] Build do Next.js passa sem erros
-- [ ] Deploy na Vercel funciona (URL acessível)
-- [ ] Fluxo completo testado com 5-10 issues
-- [ ] Issues são reordenadas no Jira ao aplicar
-- [ ] Interface funciona em mobile (smartphone)
-- [ ] README atualizado com URL e instruções
-- [ ] Documentação da fase completa
+- [x] Build do Next.js passa sem erros (2026-04-18)
+- [x] Deploy na Vercel funciona (URL acessível) (2026-04-18)
+- [x] Fluxo completo testado com 5-10 issues (2026-04-18)
+- [x] Issues são reordenadas no Jira ao aplicar (2026-04-18)
+- [x] Interface funciona em mobile (smartphone) (2026-04-18)
+- [x] README atualizado com URL e instruções (2026-04-18)
+- [x] Documentação da fase completa (2026-04-18)

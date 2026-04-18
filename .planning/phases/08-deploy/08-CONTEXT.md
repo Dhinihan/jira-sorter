@@ -2,7 +2,7 @@
 
 **Phase:** 8
 **Name:** Deploy e Testes
-**Status:** 🔴 Não Iniciada
+**Status:** ✅ Concluída
 
 ## Estado Atual
 

@@ -35,8 +35,8 @@
 
 **Produção:** https://jira-sorter.vercel.app/
 
-**Branch atual (gsd/phase-7-apply-ranks):**
-https://jira-sorter-git-gsd-phase-7-apply-ranks-dhinihans-projects.vercel.app
+**Branch atual (gsd/phase-8-deploy):**
+https://jira-sorter-git-gsd-phase-8-deploy-dhinihans-projects.vercel.app
 
 ---
 
