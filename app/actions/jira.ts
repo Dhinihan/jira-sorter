@@ -557,7 +557,7 @@ export async function applyRanks(
           const response = await fetch(
             `https://${credentials.domain}.atlassian.net/rest/agile/1.0/issue/rank`,
             {
-              method: "POST",
+              method: "PUT",
               headers: {
                 Authorization: `Basic ${auth}`,
                 "Content-Type": "application/json",
