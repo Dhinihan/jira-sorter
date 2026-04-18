@@ -11,7 +11,7 @@
 
 ### **CALL 1: Atualização de Rank (MAIOR RISCO)**
 ```http
-PUT /rest/api/3/issue/{issueKey}
+POST /rest/agile/1.0/issue/rank
 ```
 **Headers:**
 ```text
@@ -22,9 +22,9 @@ Accept: application/json
 **Body:**
 ```json
 {
-  "fields": {
-    "customfield_10019": "0|i0000n:0000000000"
-  }
+  "issues": ["PROJ-123"],
+  "rankAfterIssue": "PROJ-122",
+  "rankCustomFieldId": 10019
 }
 ```
 **Risco:** 🔴 **ALTO** - Altera dados produtivos no Jira  
@@ -59,7 +59,7 @@ export async function applyRanks(
 ```
 
 **Chamadas API utilizadas:**
-1. `PUT /rest/api/3/issue/{key}` - Atualiza rank (1x por issue)
+1. `POST /rest/agile/1.0/issue/rank` - Atualiza posição relativa (1x por issue)
 
 **Rate limiting implementado:**
 - Delay entre chamadas (exponential backoff)
@@ -68,20 +68,22 @@ export async function applyRanks(
 
 ---
 
-### Task 2: Implementar geração de LexoRank
+### Task 2: Implementar geração de parâmetros de rank
 **Arquivo:** `lib/lexorank.ts` (novo)  
-**Descrição:** Algoritmo para gerar valores LexoRank intermediários
+**Descrição:** Gera parâmetros para API de rank do Jira Agile
 
-**Funções:**
+**Função principal:**
 ```typescript
-// Gerar ranks iniciais para lista ordenada
-export function generateInitialRanks(count: number): string[]
-
-// Gerar rank entre dois valores existentes
-export function generateRankBetween(prev: string, next: string): string
+// Gerar inputs de rank para lista ordenada
+export function generateRanksForSortedIssues(issueKeys: string[]): RankInput[]
 ```
 
-**Observação:** Algoritmo matemático apenas, **sem chamadas API**
+**Lógica:** Para uma lista ordenada [A, B, C], retorna:
+- A: `{ key: "A", rankAfterKey: null }` (vai para o topo)
+- B: `{ key: "B", rankAfterKey: "A" }` (vai após A)
+- C: `{ key: "C", rankAfterKey: "B" }` (vai após B)
+
+**Observação:** Não gera LexoRank - usa chaves de issue para posicionamento relativo via API. **Sem chamadas API**.
 
 ---
 
@@ -159,7 +161,7 @@ export function generateRankBetween(prev: string, next: string): string
 ## ✅ Verification Checklist
 
 ### Must Haves
-- [ ] Server Action atualiza rank via PUT /rest/api/3/issue/{key}
+- [ ] Server Action atualiza rank via POST /rest/agile/1.0/issue/rank
 - [ ] Rate limiting respeitado (delay entre calls)
 - [ ] Retry implementado (3x com exponential backoff)
 - [ ] Lista de falhas exibida ao final

@@ -57,10 +57,15 @@ Content-Type: application/json
 
 {
   "issues": ["PROJ-123"],
-  "rankAfterIssue": "0|i007ap:rank_value",
+  "rankAfterIssue": "PROJ-122",
   "rankCustomFieldId": 10019
 }
 ```
+
+**Como funciona:** Para ordenar [A, B, C]:
+- A: `rankAfterIssue` omitido (vai para o topo)
+- B: `rankAfterIssue: "A"` (vai após A)  
+- C: `rankAfterIssue: "B"` (vai após B)
 
 **Rate Limiting:**
 - 50 requests/second (steady-state)

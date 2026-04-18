@@ -39,15 +39,17 @@
 
 ### Endpoint para Escrita
 ```http
-PUT /rest/api/3/issue/{issueKey}
+POST /rest/agile/1.0/issue/rank
 Content-Type: application/json
 
 {
-  "fields": {
-    "customfield_10019": "0|new_rank_value"
-  }
+  "issues": ["PROJ-123"],
+  "rankAfterIssue": "PROJ-122",
+  "rankCustomFieldId": 10019
 }
 ```
+
+**Nota:** Usamos a API oficial de rank do Jira Agile, não PUT direto no campo. O parâmetro `rankAfterIssue` recebe a **chave da issue** de referência (não um valor LexoRank).
 
 ---
 
@@ -70,18 +72,23 @@ Ordem final:    A2 → A1 → B1 → B2 → A3 → B3
 
 ## Chamadas de Escrita (para validação de risco)
 
-### Chamada 1: Atualizar cada issue
+### Chamada 1: Atualizar rank de cada issue
 ```http
-PUT https://{domain}.atlassian.net/rest/api/3/issue/{issueKey}
+POST https://{domain}.atlassian.net/rest/agile/1.0/issue/rank
 Authorization: Basic {auth}
 Content-Type: application/json
 
 {
-  "fields": {
-    "customfield_10019": "0|generated_rank_value"
-  }
+  "issues": ["PROJ-123"],
+  "rankAfterIssue": "PROJ-122",
+  "rankCustomFieldId": 10019
 }
 ```
+
+**Exemplo:** Para ordenar [A, B, C]:
+- A: `rankAfterIssue` omitido (vai para o topo)
+- B: `rankAfterIssue: "A"` (vai após A)
+- C: `rankAfterIssue: "B"` (vai após B)
 
 **Risco:** Médio - altera dados produtivos no Jira  
 **Mitigação:** Retry com backoff, tratamento de erro, lista de falhas
@@ -91,8 +98,7 @@ Content-Type: application/json
 ## Constraints
 
 - Não há batch API - uma chamada por issue
-- Não há endpoint específico de "rank after"
-- LexoRank geração requer cálculo de strings intermediárias
+- API de rank (`/rest/agile/1.0/issue/rank`) requer chave da issue de referência (`rankAfterIssue`)
 - Ordenação afeta backlog global (issues de outros épicos movem)
 
 ---
