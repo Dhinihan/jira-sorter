@@ -3,12 +3,8 @@
 import { getJiraCredentials, encodeBasicAuth } from "@/lib/cookies";
 import { cache } from "react";
 
-// Constante para o campo de link de épico (evita hardcoding)
-// Note: Epic info comes from the "parent" field in Jira's new API (not customfield_10014)
-
 // Helper para escapar valores JQL (previne injeção)
 function escapeJqlValue(value: string): string {
-  // Remove caracteres perigosos e quotes, depois envolve em aspas
   const clean = value.replace(/["'\\]/g, "");
   return `"${clean}"`;
 }
@@ -35,7 +31,6 @@ export async function testJiraConnection(): Promise<TestConnectionResult> {
     
     const auth = await encodeBasicAuth(credentials.email, credentials.token);
     
-    // Testa a conexão usando o endpoint /myself do site específico
     const response = await fetch(`https://${credentials.domain}.atlassian.net/rest/api/3/myself`, {
       method: "GET",
       headers: {
@@ -67,7 +62,6 @@ export async function testJiraConnection(): Promise<TestConnectionResult> {
     
     const userData = await response.json();
     
-    // Se chegou aqui, a conexão funcionou
     return {
       success: true,
       message: `Conectado como ${userData.displayName || userData.emailAddress}!`,
@@ -102,31 +96,12 @@ export interface JiraProject {
   };
 }
 
-// Interface para resposta da API de projetos
-interface JiraProjectResponse {
-  key: string;
-  name: string;
-  avatarUrls?: {
-    "48x48"?: string;
-    "24x24"?: string;
-    "16x16"?: string;
-    "32x32"?: string;
-  };
-}
-
-export interface GetProjectsResult {
-  success: boolean;
-  projects: JiraProject[];
-  message?: string;
-}
-
 export async function saveAndTestCredentials(
   email: string,
   token: string,
   domain: string
 ): Promise<SaveCredentialsResult> {
   try {
-    // Valida básico
     if (!email || !token || !domain) {
       return {
         success: false,
@@ -141,12 +116,10 @@ export async function saveAndTestCredentials(
       };
     }
     
-    // Limpa o domínio (remove https:// e .atlassian.net se o usuário incluir)
     const cleanDomain = domain
       .replace(/^https?:\/\//, "")
       .replace(/\.atlassian\.net\/?$/, "");
     
-    // Testa a conexão usando o endpoint /myself do site específico
     const auth = await encodeBasicAuth(email, token);
     const response = await fetch(`https://${cleanDomain}.atlassian.net/rest/api/3/myself`, {
       method: "GET",
@@ -179,7 +152,6 @@ export async function saveAndTestCredentials(
     
     const userData = await response.json();
     
-    // Se chegou aqui, salva as credenciais
     const { setJiraCredentials } = await import("@/lib/cookies");
     await setJiraCredentials({ email, token, domain: cleanDomain });
     
@@ -197,7 +169,7 @@ export async function saveAndTestCredentials(
   }
 }
 
-export const getProjects = cache(async (): Promise<GetProjectsResult> => {
+export const getProjects = cache(async (): Promise<{ success: boolean; projects: JiraProject[]; message?: string }> => {
   try {
     const credentials = await getJiraCredentials();
 
@@ -240,7 +212,7 @@ export const getProjects = cache(async (): Promise<GetProjectsResult> => {
 
     const projectsData = await response.json();
 
-    const projects: JiraProject[] = projectsData.map((project: JiraProjectResponse) => ({
+    const projects: JiraProject[] = projectsData.map((project: { key: string; name: string; avatarUrls?: Record<string, string> }) => ({
       key: project.key,
       name: project.name,
       avatarUrls: project.avatarUrls,
@@ -266,22 +238,7 @@ export interface JiraEpic {
   summary: string;
 }
 
-// Interface para resposta de busca de issues
-interface JiraSearchIssue {
-  id: string;
-  key: string;
-  fields: {
-    summary: string;
-  };
-}
-
-export interface GetEpicsResult {
-  success: boolean;
-  epics: JiraEpic[];
-  message?: string;
-}
-
-export const getEpics = cache(async (projectKey: string): Promise<GetEpicsResult> => {
+export const getEpics = cache(async (projectKey: string): Promise<{ success: boolean; epics: JiraEpic[]; message?: string }> => {
   try {
     const credentials = await getJiraCredentials();
 
@@ -295,7 +252,6 @@ export const getEpics = cache(async (projectKey: string): Promise<GetEpicsResult
 
     const auth = await encodeBasicAuth(credentials.email, credentials.token);
 
-    // Busca épicos do projeto usando JQL (com escaping)
     const jql = `project = ${escapeJqlValue(projectKey)} AND issuetype = Epic ORDER BY created DESC`;
     
     const response = await fetch(
@@ -327,7 +283,7 @@ export const getEpics = cache(async (projectKey: string): Promise<GetEpicsResult
 
     const searchData = await response.json();
 
-    const epics: JiraEpic[] = searchData.issues?.map((issue: JiraSearchIssue) => ({
+    const epics: JiraEpic[] = searchData.issues?.map((issue: { id: string; key: string; fields: { summary: string } }) => ({
       id: issue.id,
       key: issue.key,
       summary: issue.fields.summary,
@@ -389,10 +345,8 @@ export async function searchIssues(
     const maxResults = 100;
     const startAt = page * maxResults;
 
-    // JQL base: issues pendentes e fora de sprint (com escaping)
     let jql = `project = ${escapeJqlValue(projectKey)} AND status in ("To Do", "Backlog", "Open") AND sprint is EMPTY`;
 
-    // Adiciona filtro de épico se especificado
     if (epicKey === "none") {
       jql += ` AND parent is EMPTY`;
     } else if (epicKey) {
@@ -400,9 +354,7 @@ export async function searchIssues(
     }
 
     const response = await fetch(
-      `https://${credentials.domain}.atlassian.net/rest/api/3/search/jql?jql=${encodeURIComponent(
-        jql
-      )}&maxResults=${maxResults}&startAt=${startAt}&fields=id,key,summary,status,assignee,parent`,
+      `https://${credentials.domain}.atlassian.net/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=${maxResults}&startAt=${startAt}&fields=id,key,summary,status,assignee,parent`,
       {
         method: "GET",
         headers: {
@@ -448,7 +400,6 @@ export async function searchIssues(
             key: string; 
             fields?: { 
               summary?: string;
-              issuetype?: { name?: string };
             };
           };
         };
@@ -462,7 +413,6 @@ export async function searchIssues(
         epicName: issue.fields.parent?.fields?.summary,
       })) || [];
 
-    // Use total from API or fall back to issues length (API /search/jql doesn't always return total)
     const total = searchData.total ?? issues.length;
     const totalPages = Math.ceil(total / maxResults);
 
@@ -486,7 +436,6 @@ export async function searchIssues(
   }
 }
 
-// Interface para resultado de aplicação de ranks
 export interface ApplyRanksResult {
   success: boolean;
   applied: string[];
@@ -495,10 +444,10 @@ export interface ApplyRanksResult {
 }
 
 // Server Action para aplicar ranks no Jira
-// Cada issue deve ter: key (chave da issue) e rankAfterKey (chave da issue anterior, null se for a primeira)
+// Estratégia: Processa em ordem reversa usando rankBeforeIssue
 export async function applyRanks(
   issues: Array<{ key: string; rankAfterKey: string | null }>,
-  _projectKey: string // eslint-disable-line @typescript-eslint/no-unused-vars
+  projectKey: string
 ): Promise<ApplyRanksResult> {
   try {
     const credentials = await getJiraCredentials();
@@ -517,42 +466,86 @@ export async function applyRanks(
     const applied: string[] = [];
     const failed: Array<{ key: string; error: string }> = [];
     
-    // Processa cada issue com retry, rate limiting e timeout
-    for (let i = 0; i < issues.length; i++) {
-      const { key, rankAfterKey } = issues[i];
+    if (issues.length === 0) {
+      return {
+        success: false,
+        applied: [],
+        failed: [],
+        message: "Nenhuma issue para ordenar",
+      };
+    }
+    
+    // Buscar a última issue do backlog atual para usar como referência
+    let lastBacklogIssue: string | null = null;
+    
+    try {
+      const jql = `project = ${escapeJqlValue(projectKey)} ORDER BY rank DESC`;
+      const response = await fetch(
+        `https://${credentials.domain}.atlassian.net/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=1&fields=key`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Basic ${auth}`,
+            Accept: "application/json",
+          },
+        }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.issues && data.issues.length > 0) {
+          lastBacklogIssue = data.issues[0].key;
+        }
+      }
+    } catch (e) {
+      console.warn("Não foi possível buscar issue de referência:", e);
+    }
+    
+    // Processa as issues em ordem REVERSA (da menos prioritária para a mais prioritária)
+    // Isso permite usar rankBeforeIssue sempre apontando para a próxima
+    for (let i = issues.length - 1; i >= 0; i--) {
+      const { key } = issues[i];
       let retries = 0;
       const maxRetries = 3;
       let success = false;
+      
+      // Pula se a issue já foi aplicada anteriormente
+      if (applied.includes(key) || failed.find(f => f.key === key)) {
+        continue;
+      }
       
       while (retries < maxRetries && !success) {
         let timeoutId: NodeJS.Timeout | null = null;
         
         try {
-          // Delay exponencial entre chamadas (rate limiting)
-          if (i > 0 || retries > 0) {
-            const baseDelay = 100; // 100ms base
-            const exponentialDelay = baseDelay * Math.pow(2, retries);
-            await new Promise(resolve => setTimeout(resolve, exponentialDelay));
+          // Delay entre chamadas (rate limiting)
+          if (i < issues.length - 1 || retries > 0) {
+            await new Promise(resolve => setTimeout(resolve, 300));
           }
           
           // AbortController para timeout de 15s
           const controller = new AbortController();
           timeoutId = setTimeout(() => controller.abort(), 15000);
           
-          // Usar API de rank do Jira Agile em vez de PUT direto no campo
-          // rankAfterKey é a chave da issue que deve vir ANTES da issue atual
-          // Se rankAfterKey é null, a issue vai para o topo
+          // Prepara o payload
           const rankBody: Record<string, unknown> = {
             issues: [key],
-            rankCustomFieldId: 10019, // ID do campo Rank (customfield_10019)
+            rankCustomFieldId: 10019,
           };
           
-          // Só adiciona rankAfterIssue se houver uma issue de referência
-          if (rankAfterKey) {
-            rankBody.rankAfterIssue = rankAfterKey;
+          if (i === issues.length - 1) {
+            // Última issue (menos prioritária da nossa lista): vai pro final do backlog
+            // Usa rankAfterIssue apontando para a última issue atual do backlog
+            if (lastBacklogIssue && lastBacklogIssue !== key && !issues.some(iss => iss.key === lastBacklogIssue)) {
+              rankBody.rankAfterIssue = lastBacklogIssue;
+            }
+            // Se não temos referência ou a referência está na nossa lista,
+            // a API vai colocar no topo - isso é aceitável, vamos reordenar o resto
+          } else {
+            // Issues intermediárias: colocamos ANTES da próxima (que já foi posicionada)
+            const nextKey = issues[i + 1].key;
+            rankBody.rankBeforeIssue = nextKey;
           }
-          // Se rankAfterKey é null, não enviamos rankAfterIssue nem rankBeforeIssue
-          // A API vai colocar a issue no topo do backlog
           
           const response = await fetch(
             `https://${credentials.domain}.atlassian.net/rest/agile/1.0/issue/rank`,
@@ -574,41 +567,39 @@ export async function applyRanks(
             applied.push(key);
             success = true;
           } else if (response.status === 429) {
-            // Rate limit - espera mais e tenta novamente
+            // Rate limit
             const retryAfter = response.headers.get("Retry-After");
             const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 2000;
             await new Promise(resolve => setTimeout(resolve, waitTime));
             retries++;
           } else if (response.status >= 400 && response.status < 500 && response.status !== 429) {
-            // Erros 4xx (exceto 429) são definitivos - não faz retry
+            // Erros 4xx definitivos
             const errorText = await response.text();
             failed.push({
               key,
               error: `HTTP ${response.status}: ${errorText}`,
             });
-            break; // Sai do loop de retry
+            break;
           } else {
-            // Erros 5xx ou outros - faz retry
+            // Erros 5xx - retry
             const errorText = await response.text();
             throw new Error(`HTTP ${response.status}: ${errorText}`);
           }
         } catch (error) {
           if (timeoutId) clearTimeout(timeoutId);
           
-          // Verifica se é erro de timeout ou erro de rede (transient)
           const isTransientError = 
             error instanceof Error && 
-            (error.name === "AbortError" || // Timeout
-             error.message.includes("fetch") || // Network error
+            (error.name === "AbortError" ||
+             error.message.includes("fetch") ||
              error.message.includes("network"));
           
           if (!isTransientError && error instanceof Error && error.message.includes("HTTP 4")) {
-            // Erro 4xx definitivo
             failed.push({
               key,
               error: error.message,
             });
-            break; // Sai do loop de retry
+            break;
           }
           
           retries++;
@@ -621,7 +612,6 @@ export async function applyRanks(
         }
       }
       
-      // Se não conseguiu após todas as tentativas e ainda não está na lista de falhas
       if (!success && !failed.find(f => f.key === key)) {
         failed.push({ key, error: "Máximo de tentativas excedido" });
       }
