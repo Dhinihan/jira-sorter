@@ -616,30 +616,25 @@ export async function applyRanks(
       console.warn("Não foi possível buscar issues de referência:", e);
     }
     
-    // Determina a estratégia baseada na disponibilidade de referência externa
+    // Determina a melhor referência
     const hasExternalRef = externalReference && !issues.some(iss => iss.key === externalReference);
     const lastBacklogIssue = allIssuesInBacklog.length > 0 ? allIssuesInBacklog[0] : null;
-    const isLastInOurList = lastBacklogIssue && issues.some(iss => iss.key === lastBacklogIssue);
     
-    if (hasExternalRef) {
-      console.log(`Usando referência externa: ${externalReference}`);
-    } else if (lastBacklogIssue) {
-      console.log(`Usando última issue do backlog como referência: ${lastBacklogIssue}`);
+    // Usa referência externa se disponível, senão usa última do backlog
+    const reference = hasExternalRef ? externalReference : lastBacklogIssue;
+    
+    if (reference) {
+      console.log(`Usando referência: ${reference}`);
     } else {
-      console.log("Sem nenhuma referência disponível");
+      console.log("Sem referência disponível");
     }
     
-    // ESTRATÉGIA:
-    // - Se temos referência externa: processa na ORDEM NORMAL usando rankAfterIssue
-    // - Se NÃO temos referência externa: processa na ORDEM REVERSA usando rankBeforeIssue
-    //   (da menos prioritária para a mais, para que todas tenham referência)
-    const useReverseOrder = !hasExternalRef;
-    const startIndex = useReverseOrder ? issues.length - 1 : 0;
-    const endIndex = useReverseOrder ? -1 : issues.length;
-    const step = useReverseOrder ? -1 : 1;
-    
-    for (let idx = startIndex; useReverseOrder ? idx > endIndex : idx < endIndex; idx += step) {
-      const { key } = issues[idx];
+    // ESTRATÉGIA SIMPLES: Processa na ORDEM NORMAL
+    // - Primeira vai DEPOIS da referência (pro final)
+    // - Demais vão DEPOIS da anterior
+    // Isso funciona mesmo quando todas estão na lista!
+    for (let i = 0; i < issues.length; i++) {
+      const { key } = issues[i];
       let retries = 0;
       const maxRetries = 3;
       let success = false;
@@ -654,7 +649,7 @@ export async function applyRanks(
         
         try {
           // Delay entre chamadas (rate limiting)
-          if ((useReverseOrder ? idx < issues.length - 1 : idx > 0) || retries > 0) {
+          if (i > 0 || retries > 0) {
             await new Promise(resolve => setTimeout(resolve, 300));
           }
           
@@ -668,43 +663,19 @@ export async function applyRanks(
             rankCustomFieldId: 10019,
           };
           
-          if (useReverseOrder) {
-            // ESTRATÉGIA REVERSA: da menos prioritária para a mais
-            // Todas usam rankAfterIssue para ter referência
-            if (idx === issues.length - 1) {
-              // ÚLTIMA issue (menos prioritária da nossa lista)
-              // Vai DEPOIS da última issue do backlog (que está fora da nossa lista ou é a própria)
-              // Se a última do backlog está na nossa lista, usamos ela mesma como referência
-              // (isso vai mover ela para depois dela mesma, o que mantém no final)
-              const ref = lastBacklogIssue && lastBacklogIssue !== key ? lastBacklogIssue : null;
-              if (ref) {
-                rankBody.rankAfterIssue = ref;
-                console.log(`Issue ${key}: rankAfterIssue = ${ref} (última do backlog, ordem reversa)`);
-              } else {
-                // Se não tem referência, tenta sem (vai pro final)
-                console.log(`Issue ${key}: sem referência, vai pro final (ordem reversa)`);
-              }
+          if (i === 0) {
+            // PRIMEIRA issue vai DEPOIS da referência
+            if (reference && reference !== key) {
+              rankBody.rankAfterIssue = reference;
+              console.log(`Issue ${key}: rankAfterIssue = ${reference} (referência)`);
             } else {
-              // Issues anteriores: vão DEPOIS da próxima (já posicionada)
-              // Isso as coloca ANTES na ordem visual (mais prioritárias)
-              const nextKey = issues[idx + 1].key;
-              rankBody.rankAfterIssue = nextKey;
-              console.log(`Issue ${key}: rankAfterIssue = ${nextKey} (ordem reversa)`);
+              console.log(`Issue ${key}: sem referência, vai pro final`);
             }
           } else {
-            // ESTRATÉGIA NORMAL: da mais prioritária para a menos
-            // Usa rankAfterIssue (vai DEPOIS da referência)
-            if (idx === 0) {
-              // PRIMEIRA issue (mais prioritária da nossa lista)
-              // Vai DEPOIS da referência externa
-              rankBody.rankAfterIssue = externalReference;
-              console.log(`Issue ${key}: rankAfterIssue = ${externalReference} (referência externa)`);
-            } else {
-              // Issues subsequentes: vão DEPOIS da anterior
-              const prevKey = issues[idx - 1].key;
-              rankBody.rankAfterIssue = prevKey;
-              console.log(`Issue ${key}: rankAfterIssue = ${prevKey} (anterior na lista)`);
-            }
+            // Demais vão DEPOIS da anterior
+            const prevKey = issues[i - 1].key;
+            rankBody.rankAfterIssue = prevKey;
+            console.log(`Issue ${key}: rankAfterIssue = ${prevKey} (anterior)`);
           }
           
           const response = await fetch(
