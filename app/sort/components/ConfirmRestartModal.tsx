@@ -7,14 +7,20 @@ interface ConfirmRestartModalProps {
 
 export function ConfirmRestartModal({ onConfirm, onCancel }: ConfirmRestartModalProps) {
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="confirmRestartHeading"
+      aria-describedby="confirmRestartDesc"
+    >
       <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
         <div className="text-center mb-6">
           <div className="text-6xl mb-4">🔄</div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+          <h2 id="confirmRestartHeading" className="text-2xl font-bold text-gray-900 mb-2">
             Recomeçar Ordenação?
           </h2>
-          <p className="text-gray-600">
+          <p id="confirmRestartDesc" className="text-gray-600">
             Todo o progresso atual será perdido. Você terá que refazer todas as comparações.
           </p>
         </div>
