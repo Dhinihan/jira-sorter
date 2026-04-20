@@ -3,7 +3,7 @@
 import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { IssueCard, ConfirmApplyModal, ApplyProgress, ApplyResult } from './components';
+import { IssueCard, ConfirmApplyModal, ConfirmRestartModal, ApplyProgress, ApplyResult } from './components';
 import { useBinaryInsertionSort } from './hooks';
 import { JiraIssue, applyRanks, ApplyRanksResult } from '@/app/actions/jira';
 import { generateRanksForSortedIssues } from '@/lib/lexorank';
@@ -79,6 +79,7 @@ function SortPageContent() {
 
   // States for apply ranks flow
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showRestartModal, setShowRestartModal] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
   const [applyProgress, setApplyProgress] = useState(0);
   const [applyResult, setApplyResult] = useState<ApplyRanksResult | null>(null);
@@ -323,6 +324,12 @@ function SortPageContent() {
               >
                 Salvar
               </button>
+              <button
+                onClick={() => setShowRestartModal(true)}
+                className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 font-medium"
+              >
+                Recomeçar
+              </button>
               <Link
                 href="/issues"
                 className="px-4 py-2 text-blue-600 hover:text-blue-800 font-medium"
@@ -373,6 +380,17 @@ function SortPageContent() {
           <p>Clique no botão abaixo da issue que você considera mais importante</p>
         </div>
       </main>
+
+      {/* Confirm Restart Modal */}
+      {showRestartModal && (
+        <ConfirmRestartModal
+          onConfirm={() => {
+            handleRestart();
+            setShowRestartModal(false);
+          }}
+          onCancel={() => setShowRestartModal(false)}
+        />
+      )}
     </div>
   );
 }
